@@ -1,0 +1,247 @@
+
+html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+
+
+/* Shared panel base style */
+.panel {
+  position: absolute;
+  top: 10px;
+  width: 100px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: "Bahnschrift", sans-serif;
+  font-size: 14px;
+  color: #000;
+}
+
+
+/* Headings */
+.panel h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #333;
+  text-transform: lowercase;
+}
+
+/* Labels */
+.panel label {
+  display: block;
+  margin-top: 5px;
+  margin-bottom: 2px;
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+/* Dropdowns */
+.panel select {
+  width: 100%;
+  padding: 5px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+/* Buttons */
+.panel button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 5px;
+  font-size: 14px;
+   font-family: "Bahnschrift", sans-serif;
+  background-color: #eee;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.panel button:hover {
+  background-color: #ddd;
+}
+
+.orientation-btn {
+  display: inline-flex !important;
+  vertical-align: middle; /* optional: avoids weird baseline issues */
+}
+
+
+
+/* Horizontal divider */
+.panel hr {
+  margin: 10px 0;
+  border: none;
+  border-top: 1px solid #ddd;
+}
+
+  #scenarioSelector {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-family: "Bahnschrift" sans-serif;
+    color: #000;
+  }
+
+  #scenarioSelector label {
+    font-size: 14px;
+    color: #333;
+    display: block;
+    margin-top: 5px;
+  }
+
+  #scenarioDropdown {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #000;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 5px;
+    width: 100%;
+  }
+
+  .layer-checkbox {
+    margin-top: 10px;
+    margin-right: 5px;
+  }
+
+  .orientation-btn {
+    margin-top: 5px;
+    margin-right: 5px;
+    padding: 6px 12px;
+    font-size: 14px;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .orientation-btn.active {
+    background-color: #deb887;
+    color: white;
+    border-color: #deb887;
+  }
+
+  #panelSpacing {
+  width: 100%;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+
+  /* appearing boxes */
+  #polygonOptions {
+    position: absolute;
+    top: 10px;
+    left: 160px;
+    width: 180px;
+    display: none;
+  }
+  #polygonOptions h4 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: #333;
+    text-transform: lowercase;
+  }
+  #polygonOptions label {
+    font-size: 14px;
+    color: #333;
+    display: block;
+    margin-top: 5px;
+    text-transform: lowercase;
+  }
+  #polygonOptions input {
+    width: 100%;
+    padding: 5px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+  }
+  #polygonOptions button {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    margin: 5px 0;
+    font-size: 14px;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    text-transform: lowercase;
+  }
+  #polygonOptions button.active {
+    background-color: #deb887;
+    color: #fff;
+    border-color: #deb887;
+  }
+  #polygonOptions hr {
+    margin: 10px 0;
+    border: none;
+    border-top: 1px solid #ddd;
+  }
+
+  info button
+  #infoPanel ul {
+  margin: 0 0 8px 0;
+  padding-left: 18px;
+  list-style: disc inside;
+}
+#infoPanel li {
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #333;
+}
+
+#showInfoBtn {
+  background: #f3f3f3;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  color: #444;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  transition: background 0.15s;
+}
+#showInfoBtn:hover {
+  background: #ffe8a1;
+  color: #000;
+  border-color: #e3c176;
+}
+
+
+#tiltModelRow {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 10px 0;
+}
+
+.tiltBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #aaa;
+  background: #e8e8e8;
+  cursor: pointer;
+  font-size: 13px;
+   font-family: "Bahnschrift", sans-serif;
+
+}
+
+.tiltBtn.active {
+  border-color: #ffcc00;
+  background: #fff5ca;
+}

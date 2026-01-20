@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>renewables_output_estimator_frontend</title>
+</head>
+<body>
+
+<!--BODY (WITHOUT STYLE OR SCRIPT) FROM HEIDI'S CODE-->
+
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay"><h1>Loading...</h1></div>
+<div id="toolbar"></div>
+
+
+<!-- left panel -------------------------------------------------------------------------->
+
+
+<div id="scenarioSelector" class="panel">
+
+
+    <!---- solar panel options ---------------------------------------------------------------------------->
+
+    <div style="display:flex; gap:8px; align-items:center;">
+        <!-- your two buttons here -->
+        <button id="southBtn" class="orientation-btn active" title="solar"
+                style="border-radius:50%; width:40px; height:40px; padding:0; display:flex; align-items:center; justify-content:center;">
+            <!-- Sun icon -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+        </button>
+
+        <button id="windBtn" class="orientation-btn" title="wind"
+                style="border-radius:50%; width:40px; height:40px; padding:0; display:flex; align-items:center; justify-content:center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+                <path d="M5 9h7
+                   c2 0 3.4-1 3.4-2.2
+                   c0-1.1-1.1-2.2-2.4-2.2
+                   c-1.1 0-2 .6-2.4 1.3"/>
+
+                <path d="M3 12h14
+                   c1.9 0 3.1-1 3.1-2
+                   s-1.2-2-3.1-2"/>
+
+                <path d="M7 15h9
+                   c2 0 3 1.2 3 2.2
+                   s-1 2.2-3 2.2"/>
+            </svg>
+        </button>
+    </div>
+
+
+    <!---- divider ---------------------------------------------------------------------------->
+    <hr>
+
+    <!---- visibility toggles ---------------------------------------------------------------------------->
+    <label style="display: block; margin-bottom: 5px; color: #333; font-weight: bold;">display:</label>
+
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="suitabilityGeoToggle" class="layer-checkbox"> suitability
+    </label>
+
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="vegetationToggle" class="layer-checkbox" checked=""> trees
+    </label>
+
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="buildingsToggle" class="layer-checkbox" checked=""> buildings
+    </label>
+
+    <label style="font-weight: normal; display:none;">
+        <input type="checkbox" id="pruefgebieteToggle" class="layer-checkbox"> prüfgebiete bund
+    </label>
+</div>
+
+
+<!-- left panel -------------------------------------------------------------------------->
+<div id="polygonOptions" class="panel">
+    <h4>polygon options</h4>
+
+    <label>change orientation:</label>
+    <button id="orientSouthBtn">south</button>
+    <button id="orientDownslopeBtn">downslope</button>
+
+    <label for="polygonPanelSpacing">panel spacing [m]:</label>
+    <input type="number" id="polygonPanelSpacing" step="0.5">
+
+    <label for="polygonGCR">ground cover ratio:</label>
+    <input type="number" id="polygonGCR" step="0.1">
+
+    <label>tilt angle [°]:</label>
+    <div id="tiltModelRow">
+        <button id="tilt30Btn" class="tiltBtn">30</button>
+        <button id="tilt75Btn" class="tiltBtn">75</button>
+        <button id="tiltAutoBtn" class="tiltBtn active">auto</button>
+    </div>
+
+
+    <hr>
+    <button id="deletePolygonBtn" style="background:#c00;color:#fff;">
+        delete polygon &amp; panels
+    </button>
+</div>
+
+
+<!---- information panel ---------------------------------------------------------------------------->
+
+<!-- Info Button -->
+<button id="showInfoBtn" class="panel"
+        style="width:36px; height:36px; min-width:0; padding:0; display:flex; align-items:center; justify-content:center; left:10px; top:225px; z-index:150; font-size:22px; font-weight:bold;">
+    i
+</button>
+
+
+<!-- Hidden Info Panel -->
+<div id="infoPanel" class="panel" style="left:10px; top:270px; width:250px; z-index:200; display:none;">
+    <h4>instructions</h4>
+    <ul style="padding-left:5px; margin-bottom:0;">
+        <div><b>left click</b> → draw polygon</div>
+        <div><b>right click</b> → finish or select polygon</div>
+
+
+    </ul>
+
+</div>
+
+<div id="gcrWarning"
+     style="display:none;
+                position:absolute;
+                top:225px;
+                left:459px;
+                transform:translateX(-50%);
+                padding:10px 15px;
+                background:#c00;
+                color:white;
+                font-family: Bahnschrift;
+                border-radius:8px;
+                box-shadow:0 3px 8px rgba(0,0,0,0.3);
+                z-index:9999;">
+    GCR not feasible (GCR > 1)
+</div>
+
+<script type="module" src="/src/temp_separate_files/main-solar.js"></script>
+</body>
+</html>

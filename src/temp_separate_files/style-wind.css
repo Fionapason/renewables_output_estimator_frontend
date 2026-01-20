@@ -1,0 +1,131 @@
+html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+
+/* Shared panel base style */
+.panel {
+  position: absolute;
+  top: 45px;
+  width: 100px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-family: "Bahnschrift", sans-serif;
+  font-size: 14px;
+  color: #000;
+}
+
+
+
+/* First panel (left) - scenarioSelector */
+#scenarioSelector {
+  left: 10px;
+  z-index: 100;
+}
+
+/* Second panel (middle) - polygonOptions */
+#polygonOptions {
+  left: 190px;
+  display: none; /* keep hidden by default */
+  z-index: 100;
+}
+
+/* Third panel (right) - turbineOptions */
+#turbineOptions {
+  left: 370px;
+  display: none;
+  z-index: 100;
+}
+
+/* Headings */
+.panel h4 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #333;
+  text-transform: lowercase;
+}
+
+/* Labels */
+.panel label {
+  display: block;
+  margin-top: 5px;
+  margin-bottom: 2px;
+  font-weight: bold;
+  color: #333;
+  font-size: 14px;
+}
+
+/* Dropdowns */
+.panel select {
+  width: 100%;
+  padding: 5px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box;
+}
+
+/* Buttons */
+.panel button {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  margin-top: 5px;
+  font-size: 14px;
+  background-color: #eee;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.panel button:hover {
+  background-color: #ddd;
+}
+
+/* Horizontal divider */
+.panel hr {
+  margin: 10px 0;
+  border: none;
+  border-top: 1px solid #ddd;
+}
+
+/* Checkbox spacing */
+.layer-checkbox {
+  margin-right: 5px;
+  margin-top: 8px;
+}
+  #infoPanel ul {
+  margin: 0 0 8px 0;
+  padding-left: 18px;
+  list-style: disc inside;
+}
+#infoPanel li {
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #333;
+}
+
+#showInfoBtn {
+  background: #f3f3f3;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  color: #444;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  transition: background 0.15s;
+}
+#showInfoBtn:hover {
+  background: #ffe8a1;
+  color: #000;
+  border-color: #e3c176;
+}
+.orientation-btn.active {
+  background-color: #deb887;
+  color: white;
+  border-color: #deb887;
+}
+#windBtn.orientation-btn.active {
+  background-color: #A3C0E5 !important;
+  border-color: #A3C0E5 !important;
+  color: white !important;
+}
