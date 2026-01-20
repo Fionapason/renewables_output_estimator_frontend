@@ -19,7 +19,7 @@ export default defineConfig({
     }),
   ],
 
-  build:{
+/*  build:{
                                 rollupOptions:{
                                   input:{
                                     home:resolve(__dirname, 'index.html'),
@@ -27,5 +27,5 @@ export default defineConfig({
                                     wind:resolve(__dirname, 'index-wind.html'),
                                   }
                                 }
-                              }
+                              }*/
 });
