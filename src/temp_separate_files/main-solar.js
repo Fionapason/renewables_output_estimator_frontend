@@ -622,7 +622,7 @@ async function main() {
             const result = await placeSolarPanelsFacingSouth(activeShapePoints, spacing);
             panels = result.panels;
             spacing = result.spacing; // computed spacing
-            rows = result.rows; // TODO pass rows
+            rows = result.rows;
             console.log(spacing);
         } else {
             const result = await placeSolarPanelsDownslope(activeShapePoints, spacing);
