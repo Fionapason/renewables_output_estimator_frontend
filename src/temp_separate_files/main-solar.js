@@ -503,7 +503,7 @@ async function main() {
     }
 
 // STORING POLYGON AND PANELS
-    function storePolygonWithPanels(polygonEntity, panelEntities, orientation, positions, spacing, y) {
+    function storePolygonWithPanels(polygonEntity, panelEntities, orientation, positions, spacing, y, rows) {
         // FIONA'S CHANGE
         const panelsArray = Array.isArray(panelEntities) ? panelEntities.slice() : Array.from(panelEntities ?? []);
         polygonDataStore.push({
@@ -513,7 +513,8 @@ async function main() {
             orientation: orientation,
             positions: positions.slice(),
             spacing: spacing,
-            y: y
+            y: y,
+            rows: rows
         });
     }
 
@@ -601,44 +602,47 @@ async function main() {
         // FIONA'S CHANGE
         const outlinePositions = [...activeShapePoints, activeShapePoints[0]];
 
-        const outlineEntity = viewer.entities.add({
+        /*const outlineEntity = viewer.entities.add({
             polyline: {
                 positions: outlinePositions,
                 width: 2,
                 material: Cesium.Color.fromCssColorString("#fadfad"),
                 clampToGround: true
             }
-        });
+        });*/
 
 
         let spacing = 5;
 
         // place panels with that spacing
         let panels = [];
+        let rows = 0;
 
         if (currentOrientation === 'south') {
             const result = await placeSolarPanelsFacingSouth(activeShapePoints, spacing);
             panels = result.panels;
             spacing = result.spacing; // computed spacing
+            rows = result.rows; // TODO pass rows
             console.log(spacing);
         } else {
             const result = await placeSolarPanelsDownslope(activeShapePoints, spacing);
             panels = result.panels;
             spacing = result.spacing;
+            rows = result.rows;
         }
 
 
-// STORE PANELS
-// Compute polygon center
+        // STORE PANELS
+        // Compute polygon center
         const avgX = activeShapePoints.reduce((sum, p) => sum + p.x, 0) / activeShapePoints.length;
         const avgY = activeShapePoints.reduce((sum, p) => sum + p.y, 0) / activeShapePoints.length;
         const avgZ = activeShapePoints.reduce((sum, p) => sum + p.z, 0) / activeShapePoints.length;
         const centerCartesian = new Cesium.Cartesian3(avgX, avgY, avgZ);
 
-// Convert to Cartographic
+        // Convert to Cartographic
         const centerCarto = Cesium.Cartographic.fromCartesian(centerCartesian);
 
-// Sample terrain at center
+        // Sample terrain at center
         const [sampledHeight] = await Cesium.sampleTerrainMostDetailed(
             viewer.terrainProvider,
             [centerCarto]
@@ -653,7 +657,8 @@ async function main() {
             currentOrientation,
             activeShapePoints,
             spacing,
-            y
+            y,
+            rows
         );
 
         selectedPolygonRef = polygonDataStore[polygonDataStore.length - 1]
@@ -822,8 +827,20 @@ async function main() {
 
         //console.log(flatPoints);
 
+
+        // FIONA'S CHANGES
+
+        const invEnu = Cesium.Matrix4.inverse(enuMatrix, new Cesium.Matrix4());
+        let firstRowIndex = null;
+        let multipleRows = false;
+
+        // store azimuth per panel, keyed by entity.id (stable)
+        const panelAzimuthById = new Map();
+
+
         Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, flatPoints)
             .then(sampledPoints => {
+
                 for (let i = 0; i < sampledPoints.length; i += 3) {
                     const [center, north, east] = [sampledPoints[i], sampledPoints[i + 1], sampledPoints[i + 2]];
 
@@ -874,7 +891,7 @@ async function main() {
                     //downs if you want to use the local one and downs2 if you want to use the average one
 
                     //new so they stand up straight!!!!!
-                    //therefore xaxis just doenslope world which is not projected to the ground yet!!!
+                    //therefore x-axis just downslope world which is not projected to the ground yet!!!
 
                     // flatten downs vector to make it horizontal
                     const downsHorizontal = Cesium.Cartesian3.subtract(
@@ -898,7 +915,6 @@ async function main() {
                     Cesium.Matrix3.setColumn(mat, 2, up, mat);
 
                     const orientation = Cesium.Quaternion.fromRotationMatrix(mat);
-
 
                     // Apply to entity
                     let gcr;
@@ -927,8 +943,6 @@ async function main() {
                     }
 
                     gcr = y / spacingDown;
-                    //console.log(gcr);
-
 
                     // add the entity
 
@@ -942,15 +956,64 @@ async function main() {
                         }
                     });
 
+                    // FIONA'S CHANGES
+
+                    // compute "row coordinate" along the *average* downslope axis used for the grid
+                    const pENU = Cesium.Matrix4.multiplyByPoint(invEnu, pCenter, new Cesium.Cartesian3());
+                    const t = pENU.x * downslope.x + pENU.y * downslope.y; // projection onto downslope axis (ENU)
+                    const rowIndex = Math.round(t / spacingDown);
+
+
+                    if (firstRowIndex === null) firstRowIndex = rowIndex;
+                    else if (rowIndex !== firstRowIndex) multipleRows = true;
+
+
+
+
+                    // FIONA'S CHANGES
+                    const localPanelNormal = new Cesium.Cartesian3(1, 0, 0); // try +Y
+                    const q = ent.orientation.getValue(Cesium.JulianDate.now());
+                    const R = Cesium.Matrix3.fromQuaternion(q);
+                    const panelNormalWorld = Cesium.Matrix3.multiplyByVector(R, localPanelNormal, new Cesium.Cartesian3());
+
+                    const nENU = Cesium.Matrix4.multiplyByPointAsVector(invEnu, panelNormalWorld, new Cesium.Cartesian3());
+
+                    // horizontal projection by dropping vertical component
+                    nENU.z = 0;
+                    Cesium.Cartesian3.normalize(nENU, nENU);
+
+
+                    let azimuthDeg = Cesium.Math.toDegrees(
+                        Math.atan2(nENU.x, nENU.y)   // atan2(East, North)
+                    );
+
+                    azimuthDeg = (azimuthDeg + 360) % 360;
+
+                    console.log("Panel azimuth = " + azimuthDeg)
+
+                    ent.properties = new Cesium.PropertyBag({ azimuth: azimuthDeg });
+
+
                     panelEntities.push(ent);
-                    //console.log(panelEntities);
                 }
             })
+
+
+        // FIONA'S CHANGES
+        let rowCountFlag;
+        // No panels means 0 rows
+        if (panelEntities.length === 0) rowCountFlag = 0;
+        // more than one row
+        else if (multipleRows) rowCountFlag = 2;
+        // exactly one row
+        else rowCountFlag = 1;
+
 
         //console.log(panelEntities);
         return {
             panels: panelEntities,
-            spacing: spacingDown  // return computed spacing
+            spacing: spacingDown,  // return computed spacing
+            rows: rowCountFlag
         };
 
 
@@ -970,6 +1033,7 @@ async function main() {
         //console.log(spacingDown);
 
         const panelEntities = [];
+        // enforce minimum size
         if (cartesianPositions.length < 3) {
             return panelEntities;
         }
@@ -993,8 +1057,6 @@ async function main() {
         const eastENU = Cesium.Cartesian3.fromElements(1, 0, 0);
 
         // Build a regular grid just for calculations using your **parameters** spacingPerp & spacingDown
-
-
         const gridHalf = 1000;
         const allENU = [];
         for (let x = -gridHalf; x <= gridHalf; x += spacingPerp) {
@@ -1103,22 +1165,22 @@ async function main() {
             // === keep your aspect and slope logic unchanged ===
 
             // --- Compute local up, slope, and aspect correctly ---
-// use the Cartesian center point for surface normal reference
+            // use the Cartesian center point for surface normal reference
             const upWorld = Cesium.Ellipsoid.WGS84.geodeticSurfaceNormal(pCenter, new Cesium.Cartesian3());
 
-// --- SLOPE ---
+            // --- SLOPE ---
             const cosSlope = Cesium.Cartesian3.dot(normal, upWorld);
             const slopeRad = Math.acos(Math.min(1.0, Math.max(-1.0, cosSlope)));
             const slopeDeg = Cesium.Math.toDegrees(slopeRad);
             slopeArray.push(slopeDeg);
-//console.log(slopeDeg);
+            //console.log(slopeDeg);
 
-// --- ASPECT ---
+            // --- ASPECT ---
             const aseast = Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, upWorld, new Cesium.Cartesian3());
             Cesium.Cartesian3.normalize(aseast, aseast);
             const asnorth = Cesium.Cartesian3.cross(upWorld, aseast, new Cesium.Cartesian3());
 
-// Project surface normal into tangent plane
+            // Project surface normal into tangent plane
             const nDotUp = Cesium.Cartesian3.dot(normal, upWorld);
             const proj = Cesium.Cartesian3.subtract(
                 normal,
@@ -1127,7 +1189,7 @@ async function main() {
             );
             Cesium.Cartesian3.normalize(proj, proj);
 
-// Aspect: angle clockwise from North
+            // Aspect: angle clockwise from North
             const eastComp = Cesium.Cartesian3.dot(proj, aseast);
             const northComp = Cesium.Cartesian3.dot(proj, asnorth);
             const aspectRad = Math.atan2(eastComp, northComp);
@@ -1184,7 +1246,6 @@ async function main() {
         const slopeRows = [0, 10, 20, 30, 40];
 
         // GCR table for <1500 m.a.s.l.
-        // GCR table for <1500 m.a.s.l.
         const gcrTableLow = [
             // slope rows: 0°, 10°, 20°, 30°, 40°
             [0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366, 0.366,
@@ -1199,7 +1260,7 @@ async function main() {
                 0.750, 0.750, 0.750, 0.750, 0.750, 0.750, 0.750, 0.729, 0.559, 0.366, 0.165, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
         ];
 
-// GCR table for >1500 m.a.s.l.
+        // GCR table for >1500 m.a.s.l.
         const gcrTableHigh = [
             [0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259,
                 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259, 0.259],
@@ -1258,6 +1319,11 @@ async function main() {
         const filtered2 = cartoGrid2.filter(insideBuffer);
         const sampled2 = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, filtered2);
         //console.log(sampled2);
+
+        // FIONA'S CHANGES
+        // Find out if 0, 1, or multiple rows
+        let firstRowIndex = null;
+        let multipleRows = false;
         // project southENU onto the surface
         // For each sample, compute local frame & add a panel entity
         for (let i = 0; i < sampled2.length; i++) {
@@ -1311,6 +1377,23 @@ async function main() {
                 }
             }
 
+            // FIONA'S CHANGES
+            // convert panel position (world2) into the grid's coordinate system (invEnu)
+            const invEnu = Cesium.Matrix4.inverse(enuMatrix, new Cesium.Matrix4());
+            const pENU = Cesium.Matrix4.multiplyByPoint(invEnu, world2, new Cesium.Cartesian3());
+            // compute which row this panel belongs to (y-axis is south-facing)
+            const rowIndex = Math.round(pENU.y / spacingDown);
+
+            // check if we've already seen more rows
+            if (firstRowIndex === null) {
+                firstRowIndex = rowIndex;
+            } else if (rowIndex !== firstRowIndex) {
+                multipleRows = true;
+            }
+
+
+            const azimuthDeg = 180;
+
             // add the entity
 
             const ent = viewer.entities.add({
@@ -1322,12 +1405,27 @@ async function main() {
                     scale: 1.0
                 }
             });
+
+            ent.properties = new Cesium.PropertyBag({ azimuth_deg: azimuthDeg });
+
             panelEntities.push(ent);
         }
+
+        // FIONA'S CHANGES
+        let rowCountFlag;
+        // No panels means 0 rows
+        if (panelEntities.length === 0) rowCountFlag = 0;
+        // more than one row
+        else if (multipleRows) rowCountFlag = 2;
+        // exactly one row
+        else rowCountFlag = 1;
+
+
         //console.log(panelEntities);
         return {
             panels: panelEntities,
-            spacing: spacingDown  // return computed spacing
+            spacing: spacingDown,  // return computed spacing
+            rows: rowCountFlag
         };
 
     }
@@ -1430,16 +1528,22 @@ async function main() {
         const filtered = cartoGrid.filter(insideBuffer);
         const sampled = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, filtered);
 
+
+        // FIONA'S CHANGES
+        // Find out if 0, 1, or multiple rows
+        let firstRowIndex = null;
+        let multipleRows = false;
+
         // For each sample, compute local frame & add a panel entity
         for (let i = 0; i < sampled.length; i++) {
             const s = sampled[i];
-            const world = Cesium.Cartesian3.fromRadians(s.longitude, s.latitude, s.height);
+            const world2 = Cesium.Cartesian3.fromRadians(s.longitude, s.latitude, s.height);
 
             // get normal from tiny north/east offset
             const north = Cesium.Cartesian3.fromRadians(s.longitude, s.latitude + 1e-6, s.height);
             const east = Cesium.Cartesian3.fromRadians(s.longitude + 1e-6, s.latitude, s.height);
-            const vN = Cesium.Cartesian3.subtract(north, world, new Cesium.Cartesian3());
-            const vE = Cesium.Cartesian3.subtract(east, world, new Cesium.Cartesian3());
+            const vN = Cesium.Cartesian3.subtract(north, world2, new Cesium.Cartesian3());
+            const vE = Cesium.Cartesian3.subtract(east, world2, new Cesium.Cartesian3());
             const normal = Cesium.Cartesian3.cross(vE, vN, new Cesium.Cartesian3());
             Cesium.Cartesian3.normalize(normal, normal);
 
@@ -1480,10 +1584,27 @@ async function main() {
                     modelUri = '/tiles/solarpanels/2solarpanelsorigin75klein.glb';
                 }
             }
-// add the entity
+
+            // FIONA'S CHANGES
+            // convert panel position (world2) into the grid's coordinate system (invEnu)
+            const invEnu = Cesium.Matrix4.inverse(enuMatrix, new Cesium.Matrix4());
+            const pENU = Cesium.Matrix4.multiplyByPoint(invEnu, world2, new Cesium.Cartesian3());
+            // compute which row this panel belongs to (y-axis is south-facing)
+            const rowIndex = Math.round(pENU.y / spacingDown);
+
+            // check if we've already seen more rows
+            if (firstRowIndex === null) {
+                firstRowIndex = rowIndex;
+            } else if (rowIndex !== firstRowIndex) {
+                multipleRows = true;
+            }
+
+            const azimuthDeg = 180;
+
+            // add the entity
 
             const ent = viewer.entities.add({
-                position: world,
+                position: world2,
                 orientation: orientation,
                 model: {
                     uri: modelUri,
@@ -1491,12 +1612,27 @@ async function main() {
                     scale: 1.0
                 }
             });
+
+            ent.properties = new Cesium.PropertyBag({ azimuth_deg: azimuthDeg });
+
+
             panelEntities.push(ent);
         }
 
+        // FIONA'S CHANGES
+        let rowCountFlag;
+        // No panels means 0 rows
+        if (panelEntities.length === 0) rowCountFlag = 0;
+        // more than one row
+        else if (multipleRows) rowCountFlag = 2;
+        // exactly one row
+        else rowCountFlag = 1;
+
+
         return {
             panels: panelEntities,
-            spacing: spacingDown  // return computed spacing
+            spacing: spacingDown,  // return computed spacing
+            rows: rowCountFlag
         };
 
     }
@@ -1614,6 +1750,17 @@ async function main() {
 
     document.getElementById("tiltAutoBtn").addEventListener("click", async () => {
         setTiltActive("tiltAutoBtn");
+        if (!selectedPolygonRef) return;
+        await computeAndUpdateOutput(selectedPolygonRef);
+    });
+
+
+    document.getElementById("orientSouthBtn").addEventListener("click", async () => {
+        if (!selectedPolygonRef) return;
+        await computeAndUpdateOutput(selectedPolygonRef);
+    });
+
+    document.getElementById("orientDownslopeBtn").addEventListener("click", async () => {
         if (!selectedPolygonRef) return;
         await computeAndUpdateOutput(selectedPolygonRef);
     });
@@ -1754,13 +1901,13 @@ async function main() {
         gcrWarning.style.display = newGcr > 1 ? "block" : "none";
 
         // highlight polygon
-        if (newGcr > 1) {
+        /*if (newGcr > 1) {
             ref.outlineEntity.polygon.material = Cesium.Color.RED.withAlpha(0.4);
             ref.outlineEntity.polygon.outlineColor = Cesium.Color.RED;
         } else {
             ref.outlineEntity.polygon.material = Cesium.Color.YELLOW.withAlpha(0.3);
             ref.outlineEntity.polygon.outlineColor = Cesium.Color.YELLOW;
-        }
+        }*/
     }
 
 

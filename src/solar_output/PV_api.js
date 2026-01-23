@@ -14,9 +14,12 @@ export async function computeAndUpdateOutput(ref) {
     try {
         setPVOutput("computing…");
 
+        if (ref.rows == 0) {
+            setPVOutput("–");
+            return;
+        }
 
-        const gcr = getGCRFromUIorfallback(ref);
-        const payload = await buildAnnualPayloadFromPolygonRef(ref, gcr);
+        const payload = await buildAnnualPayloadFromPolygonRef(ref);
 
         const result = await callComputeAnnual(payload);
 
@@ -57,38 +60,32 @@ async function callComputeAnnual(payload) {
 
 
 // construct API input from the polygon
-async function buildAnnualPayloadFromPolygonRef(ref, gcr) {
+async function buildAnnualPayloadFromPolygonRef(ref) {
 
     if (!ref) throw new Error("No polygon ref");
     const panelsArr = Array.isArray(ref.panels) ? ref.panels : Array.from(ref.panels ?? []);
     if (panelsArr.length === 0) throw new Error("Polygon has no panels");
 
-    // Get center of polygon
-    const center = cartesianCentroidLonLat(ref.positions);
+    const gcr = getGCRFromUIorfallback(ref);
 
-    // Anchor for row estimation (cartesian)
-    const anchorCartesian = Cesium.Cartesian3.fromDegrees(center.lon, center.lat);
-    const rows = estimateRowsFromPanels(ref.panels, anchorCartesian, 1.5);
-
-
-    const azimuth_deg = await getAzimuthDegForPolygon(ref);
+    const rows = ref.rows;
     const tilt_deg = getTiltModeFromUI(ref);
 
-    // If south: constant azimuth
-    // If downslope: you’ll later replace this with per-panel downslope azimuth
-    const constantAz = (ref.orientation === "south") ? 180 : 180;
-
-    // For each panel, construc the DTO for the API Call
+    // For each panel, construct the DTO for the API Call
     const panelDTOs = panelsArr
         .map((ent, i) => {
             const ll = entityLonLat(ent);
             if (!ll) return null;
+            const now = Cesium.JulianDate.now();
+            const az = ent.properties?.azimuth_deg?.getValue?.(now) ?? 180;
+
+            console.log("Entity: " + ent)
             return {
                 id: `${ref.id}_p${i}`,
                 lon: ll.lon,
                 lat: ll.lat,
                 tilt_deg: tilt_deg,
-                azimuth_deg: constantAz, // TODO GET AZIMUTH
+                azimuth_deg: az,
             };
         })
         .filter(Boolean);
@@ -109,16 +106,6 @@ function getTiltModeFromUI(ref) {
     if (document.getElementById("tilt75Btn")?.classList.contains("active")) return 75;
 
     return (ref.y === 0.65) ? 75 : 30;; // default if auto is active or none is set
-}
-
-// Retrieve Azimuth from Polygon
-async function getAzimuthDegForPolygon(ref) {
-    // TODO
-
-    // If your Python expects azimuth for each panel/system:
-    // - south-facing -> 180
-    // - downslope -> you can start with 180 as placeholder, or compute properly later
-    return ref.orientation === "south" ? 180 : 180;
 }
 
 // Get GCR from UI, but if UI input is invalid, make a guess

@@ -1,11 +1,14 @@
 import * as Cesium from "cesium";
 
+// Returns the longitude and latitude of the a group of cartesian points
 export function cartesianCentroidLonLat(cartesianPositions) {
-    // TODO CHECK WHAT DOES THIS CODE DO?
+
+    // average x,y,z coordinate in the cartesian positions
     const avgX = cartesianPositions.reduce((s, p) => s + p.x, 0) / cartesianPositions.length;
     const avgY = cartesianPositions.reduce((s, p) => s + p.y, 0) / cartesianPositions.length;
     const avgZ = cartesianPositions.reduce((s, p) => s + p.z, 0) / cartesianPositions.length;
 
+    // define center
     const c = new Cesium.Cartesian3(avgX, avgY, avgZ);
     const carto = Cesium.Cartographic.fromCartesian(c);
 
