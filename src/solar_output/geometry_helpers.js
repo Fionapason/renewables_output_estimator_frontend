@@ -1,7 +1,19 @@
 import * as Cesium from "cesium";
 
+export function entityLonLat(ent) {
+    const pos = ent.position?.getValue?.(Cesium.JulianDate.now());
+    if (!pos) return null;
+    const carto = Cesium.Cartographic.fromCartesian(pos);
+    return {
+        lon: Cesium.Math.toDegrees(carto.longitude),
+        lat: Cesium.Math.toDegrees(carto.latitude),
+    };
+}
+
+
+
 // Returns the longitude and latitude of the a group of cartesian points
-export function cartesianCentroidLonLat(cartesianPositions) {
+export function DEPLETED_cartesianCentroidLonLat(cartesianPositions) {
 
     // average x,y,z coordinate in the cartesian positions
     const avgX = cartesianPositions.reduce((s, p) => s + p.x, 0) / cartesianPositions.length;
@@ -18,21 +30,11 @@ export function cartesianCentroidLonLat(cartesianPositions) {
     };
 }
 
-export function entityLonLat(ent) {
-    const pos = ent.position?.getValue?.(Cesium.JulianDate.now());
-    if (!pos) return null;
-    const carto = Cesium.Cartographic.fromCartesian(pos);
-    return {
-        lon: Cesium.Math.toDegrees(carto.longitude),
-        lat: Cesium.Math.toDegrees(carto.latitude),
-    };
-}
-
 
 // Count "rows" from panel entity positions by clustering their local-North coordinate.
 // This is an estimate; good enough to start.
 // TODO CHECK IF THIS MAKES ANY SENSE
-export function estimateRowsFromPanels(panelEntities, anchorCartesian, toleranceMeters = 1.5) {
+export function DEPLETED_estimateRowsFromPanels(panelEntities, anchorCartesian, toleranceMeters = 1.5) {
     if (!panelEntities || panelEntities.length === 0) return 0;
 
     const enu = Cesium.Transforms.eastNorthUpToFixedFrame(anchorCartesian);
@@ -40,7 +42,7 @@ export function estimateRowsFromPanels(panelEntities, anchorCartesian, tolerance
     // Extract north coordinate (meters) for each panel
     const panelsArr = Array.from(panelEntities);
 
-// Extract north coordinate (meters) for each panel
+    // Extract north coordinate (meters) for each panel
     const norths = panelsArr
         .map(ent => ent.position?.getValue?.(Cesium.JulianDate.now()))
         .filter(Boolean)

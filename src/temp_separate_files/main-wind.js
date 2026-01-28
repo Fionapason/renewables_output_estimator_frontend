@@ -2,6 +2,7 @@ import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
+// TODO SINGLE TURBINE OUTPUT
 async function main() {
     'use strict';
 //Sandcastle_Begin
@@ -583,7 +584,7 @@ async function main() {
         );
 
         const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
-
+        // TODO get turbine locations from python code
         // 4) Place turbines at sampled locations
         detailed.forEach(c => {
             const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
@@ -724,6 +725,7 @@ async function main() {
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // FUNCTION I: RIGHT CLICK + S TO SELECT A SINGLE TURBINE
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// TODO ENFORCE MINIMUM TURBINE DISTANCE
     let selectedTurbineRef = null;    // { entities: [mast, blades], record: polygonRecord }
     let turbineSelectMode = false;
 
@@ -1256,7 +1258,7 @@ async function main() {
             name: "Wind Turbine",
             position: groundPos,
             model: {
-                uri: `/turbines/mastandnacelle${H}.glb`,
+                uri: `tiles/turbines/mastandnacelle${H}.glb`,
                 scale: 1,
                 runAnimations: false
             },
@@ -1273,7 +1275,7 @@ async function main() {
                 hubPos, new Cesium.HeadingPitchRoll(0, 0, 0)
             ),
             model: {
-                uri: `/turbines/bladesandhub${H}center.glb`,
+                uri: `tiles/turbines/bladesandhub${H}center.glb`,
                 scale: 1,
                 runAnimations: false
             }

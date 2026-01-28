@@ -1,5 +1,5 @@
 import './geometry_helpers.js'
-import {cartesianCentroidLonLat, entityLonLat, estimateRowsFromPanels} from "./geometry_helpers.js";
+import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
 
 const PV_API_BASE = "http://localhost:8000";
@@ -14,7 +14,7 @@ export async function computeAndUpdateOutput(ref) {
     try {
         setPVOutput("computing…");
 
-        if (ref.rows == 0) {
+        if (ref.no_one_or_multiple_rows == 0) {
             setPVOutput("–");
             return;
         }
@@ -68,7 +68,7 @@ async function buildAnnualPayloadFromPolygonRef(ref) {
 
     const gcr = getGCRFromUIorfallback(ref);
 
-    const rows = ref.rows;
+    const rows = ref.no_one_or_multiple_rows;
     const tilt_deg = getTiltModeFromUI(ref);
 
     // For each panel, construct the DTO for the API Call
@@ -93,7 +93,7 @@ async function buildAnnualPayloadFromPolygonRef(ref) {
     return {
         output: "annual",
         gcr: gcr,
-        rows: Math.max(rows, 1),
+        no_one_or_multiple_rows: Math.max(rows, 1),
         panels: panelDTOs
     };
 }
