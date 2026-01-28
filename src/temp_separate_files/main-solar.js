@@ -1703,7 +1703,6 @@ async function main() {
 
 
 // TILT ANGLES
-// TODO get rid of tilt button redundancy
     function setTiltMode(mode) {
         currentTiltMode = mode;
 
@@ -1752,7 +1751,6 @@ async function main() {
         const idx = polygonDataStore.indexOf(selectedPolygonRef);
         if (idx >= 0) polygonDataStore.splice(idx, 1);
         selectedPolygonRef = null;
-        // TODO remove outline
         // hide UI
         document.getElementById('polygonOptions').style.display = 'none';
     };
@@ -1809,7 +1807,6 @@ async function main() {
 
     // UPDATE POLYGON PLACEMENT
     // 4) Extend updatePolygonOrientation to accept spacing
-    // TODO add recomupte HERE
     async function updatePolygonOrientation(ref, newOrientation, spacing) {
         // remove old panels
         if (currentTiltMode === "30") {

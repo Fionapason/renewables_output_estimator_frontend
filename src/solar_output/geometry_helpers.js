@@ -33,7 +33,6 @@ export function DEPLETED_cartesianCentroidLonLat(cartesianPositions) {
 
 // Count "rows" from panel entity positions by clustering their local-North coordinate.
 // This is an estimate; good enough to start.
-// TODO CHECK IF THIS MAKES ANY SENSE
 export function DEPLETED_estimateRowsFromPanels(panelEntities, anchorCartesian, toleranceMeters = 1.5) {
     if (!panelEntities || panelEntities.length === 0) return 0;
 
