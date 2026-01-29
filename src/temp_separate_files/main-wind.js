@@ -1,8 +1,9 @@
 import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import {computeAndUpdateOutputWind} from "../wind_output/wind_api.js";
 
-// TODO SINGLE TURBINE OUTPUT
+
 async function main() {
     'use strict';
 //Sandcastle_Begin
@@ -835,8 +836,7 @@ async function main() {
     }
 
 
-// CHANGE HUBHEIGHT FOR SELECTED TURBINE
-
+    // CHANGE HUBHEIGHT FOR SELECTED TURBINE
     document.getElementById('turbineHubHeight').addEventListener('change', async function () {
         if (!selectedTurbineRef) return;
         const newH = parseInt(this.value, 10);
@@ -879,6 +879,8 @@ async function main() {
         rec.turbines = rec.turbines
             .filter(e => !oldGroup.includes(e))
             .concat([mast, blades]);
+        // FIONA'S CHANGES
+        rec.hubHeight = newH;
 
         // highlight new ones
         [mast, blades].forEach(ent => {
@@ -889,6 +891,10 @@ async function main() {
 
         // update selection
         selectedTurbineRef.entities = [mast, blades];
+
+        // FIONA'S CHANGES
+        showTurbineOptions(selectedTurbineRef);
+        await computeAndUpdateOutputWind(selectedTurbineRef);
     });
 
 
@@ -970,7 +976,7 @@ async function main() {
         hubSel.value = String(ref.hubHeight);
     }
 
-// whenever the user picks a new hub height in the panel:
+    // whenever the user picks a new hub height in the panel:
     document.getElementById('polyHubHeight').addEventListener('change', async function () {
         if (!selectedPolygonRef) return;
 
@@ -997,7 +1003,7 @@ async function main() {
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-// KEYDOWN / KEYUP TO TOGGLE S MODE
+    // KEYDOWN / KEYUP TO TOGGLE S MODE
     window.addEventListener('keydown', e => {
         if (e.key.toLowerCase() === 'r') {
             resizeMode = true;
@@ -1083,7 +1089,7 @@ async function main() {
         }
     });
 
-// SELECTING THE TURBINE BY RIGHT CLICK
+    // SELECTING THE TURBINE BY RIGHT CLICK
     moveHandler.setInputAction((down) => {
         if (!isMKeyDown) return;
         viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -1183,7 +1189,7 @@ async function main() {
     });
 
 
-// STOP DRAGGING
+    // STOP DRAGGING
     moveHandler.setInputAction(() => {
         moveHandler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         isDragging = false;
@@ -1305,6 +1311,9 @@ async function main() {
 
         selectedTurbineRef = {entities: [mast, blades], record: record};
         showTurbineOptions(selectedTurbineRef);
+
+        // FIONA'S CHANGES
+        await computeAndUpdateOutputWind(selectedTurbineRef);
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 

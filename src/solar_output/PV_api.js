@@ -1,11 +1,10 @@
-import './geometry_helpers.js'
 import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
 
 const PV_API_BASE = "http://localhost:8000";
 
 // SET OUTPUT
-export async function computeAndUpdateOutput(ref) {
+export async function computeAndUpdatePVOutput(ref) {
     if (!ref) {
         setPVOutput("—");
         return;
@@ -19,9 +18,9 @@ export async function computeAndUpdateOutput(ref) {
             return;
         }
 
-        const payload = await buildAnnualPayloadFromPolygonRef(ref);
+        const payload = await buildAnnualPayloadFromPVPolygonRef(ref);
 
-        const result = await callComputeAnnual(payload);
+        const result = await callComputeAnnualPV(payload);
 
         const kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
         if (kwh == null) {
@@ -48,7 +47,7 @@ export function setSpacingUI(spacing) {
 }
 
 // Make API Call
-async function callComputeAnnual(payload) {
+async function callComputeAnnualPV(payload) {
     const res = await fetch(`${PV_API_BASE}/compute-annual`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -60,7 +59,7 @@ async function callComputeAnnual(payload) {
 
 
 // construct API input from the polygon
-async function buildAnnualPayloadFromPolygonRef(ref) {
+async function buildAnnualPayloadFromPVPolygonRef(ref) {
 
     if (!ref) throw new Error("No polygon ref");
     const panelsArr = Array.isArray(ref.panels) ? ref.panels : Array.from(ref.panels ?? []);
