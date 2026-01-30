@@ -294,10 +294,10 @@ async function main() {
     let activeShapePoints = [];
     let activeShape;
     let floatingPoint;
-// Track all helper‐point entities so we can hide them later
+    // Track all helper‐point entities so we can hide them later
     let activePointEntities = [];
 
-// helper function to toggle Cesium default event handling, so no interference!
+    // helper function to toggle Cesium default event handling, so no interference!
     function toggleCesiumDefaultHandlers(enable) {
         const screenSpaceHandler = viewer.screenSpaceEventHandler;
         if (!screenSpaceHandler) return;
@@ -340,11 +340,11 @@ async function main() {
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 
-// START DRAWING WITH LEFT CLICK
+    // START DRAWING WITH LEFT CLICK
     handler.setInputAction((event) => {
         const picked = viewer.scene.pick(event.position);
         if (Cesium.defined(picked) && picked.id && picked.id.model) {
-// clicked a turbine → don’t start/continue a polygon
+            // clicked a turbine → don’t start/continue a polygon
             return;
         }
         const earthPosition = viewer.scene.pickPosition(event.position);
@@ -363,7 +363,7 @@ async function main() {
         createPoint(earthPosition);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-// MOVE FLOATING POINT ON MOUSE MOVE
+    // MOVE FLOATING POINT ON MOUSE MOVE
     handler.setInputAction((event) => {
         if (!drawing) return;
         const newPosition = viewer.scene.pickPosition(event.endPosition);
@@ -374,11 +374,11 @@ async function main() {
         activeShapePoints.push(newPosition);
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-// global storage
+    // global storage
     const polygonTurbineRecords = [];
     let rotatingBlades = [];
 
-// RIGHT-CLICK: FINISH POLYGON AND PLACE CHOSEN NUMBER AND HUBHEIGHT OF TURBINES
+    // RIGHT-CLICK: FINISH POLYGON AND PLACE CHOSEN NUMBER AND HUBHEIGHT OF TURBINES
     handler.setInputAction(async (clickEvent) => {
         // only finish drawing if we’re in draw‐mode; otherwise let selectHandler handle it
         if (!drawing) {
@@ -411,23 +411,41 @@ async function main() {
 
         // before pushing into polygonTurbineRecords
         const positionsCopy = activeShapePoints.slice(); // copy the final vertices
-        // …
-        const newTurbines = await placeTurbinesInPolygon(activeShapePoints, H);
+
+        // FIONA'S CHANGES
+        let placedPositions = null;
+
+        const newTurbines = await placeTurbinesInPolygon(
+            activeShapePoints,
+            H,
+            (pp) => { placedPositions = pp; }
+        );
 
         // store them so we never delete others, **and** remember N, H, and positions
         polygonTurbineRecords.push({
             polygon: polygonEntity,
             turbines: newTurbines,
-            positions: positionsCopy,
-
+            // store the actual turbine positions for API + later edits
+            positions: placedPositions ?? positionsCopy,
             hubHeight: H
         });
+
+        const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
+
+        // compute AEP for the whole polygon turbine set
+        await computeAndUpdateOutputWind(polyRec);
+
+        // OPTIONAL: if you want turbine UI to open, select the *first* turbine pair as a "single-turbine ref"
+        if (polyRec.turbines && polyRec.turbines.length >= 2) {
+            selectedTurbineRef = { entities: [polyRec.turbines[0], polyRec.turbines[1]], record: polyRec };
+            showTurbineOptions(selectedTurbineRef);
+        }
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
 
-// TEMPORARY SHAPE
+    // TEMPORARY SHAPE
     function drawShape(positionData) {
         return viewer.entities.add({
             polygon: {
@@ -441,7 +459,7 @@ async function main() {
         });
     }
 
-// FINAL POLYGON SHAPE
+    // FINAL POLYGON SHAPE
     function drawPolygon(positionData) {
         return viewer.entities.add({
             polygon: {
@@ -451,7 +469,7 @@ async function main() {
         });
     }
 
-// VISUAL HELPER POINT
+    // VISUAL HELPER POINT
     function createPoint(worldPosition) {
         const ent = viewer.entities.add({
             position: worldPosition,
@@ -470,7 +488,7 @@ async function main() {
 // PLACE TURBINES
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-//HELPER FUNCTION: 2D point-in-polygon (ray-cast)
+    //HELPER FUNCTION: 2D point-in-polygon (ray-cast)
     function pointInPolygon(pt, vs) {
         const [x, y] = pt;
         let inside = false;
@@ -483,7 +501,7 @@ async function main() {
         return inside;
     }
 
-// SAMPLE RANDON POINTS IN POLYGON (TO BE REPLACED BY SEARCHALGORITHM SAMPLING POINTS BASED ON ENERGY PRODUCTION)
+    // SAMPLE RANDOM POINTS IN POLYGON (TO BE REPLACED BY SEARCH ALGORITHM SAMPLING POINTS BASED ON ENERGY PRODUCTION)
     function computeLonLatCentroid(lonLatArray) {
         let sumLon = 0;
         let sumLat = 0;
@@ -546,92 +564,94 @@ async function main() {
     }
 
 
-// PLACE TURBINES INSIDE THE POLYGON
+    // PLACE TURBINES INSIDE THE POLYGON
+    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */) {
+    const newEntities = [];
 
-    async function placeTurbinesInPolygon(cartesians, hubHeight) {
-        const newEntities = [];
-
-        // 1) Determine rotor radius based on hubHeight
-        let rotorRadius;
-        if (hubHeight === 150) {
-            rotorRadius = 450;
-        } else if (hubHeight === 125) {
-            rotorRadius = 350;
-        } else if (hubHeight === 100) {
-            rotorRadius = 250;
-        } else {
-            console.error("Invalid hub height selected!");
-            return [];
-        }
-
-        let rotorDiameter = rotorRadius * 2;
-
-        // 2) Generate hexagonal positions based on spacing
-        const positions = generateHexagonalTurbinePositions(cartesians, rotorDiameter);
-
-        // Important: Check if positions are generated
-        if (positions.length === 0) {
-            console.warn("No turbine positions could be generated. Polygon may be too small or spacing too large.");
-            return [];
-        }
-
-        // 3) Sample terrain height for each generated position
-        const cartos = positions.map(([lon, lat]) =>
-            new Cesium.Cartographic(
-                Cesium.Math.toRadians(lon),
-                Cesium.Math.toRadians(lat),
-                0
-            )
-        );
-
-        const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
-        // TODO get turbine locations from python code
-        // 4) Place turbines at sampled locations
-        detailed.forEach(c => {
-            const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
-
-            const cfg = {
-                mastAndNacelleUri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`,
-                bladesAndHubUri: `/tiles/turbines/bladesandhub${hubHeight}center.glb`,
-                hubheight: hubHeight
-            };
-
-            // Place mast + nacelle
-            const mast = viewer.entities.add({
-                name: "Wind Turbine",
-                position: groundPos,
-                model: {
-                    uri: cfg.mastAndNacelleUri,
-                    scale: 1,
-                    runAnimations: false
-                },
-                description: `Initial hub height: ${cfg.hubheight} meters`
-            });
-            newEntities.push(mast);
-
-            // Place blades at hub height
-            const hubPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + cfg.hubheight);
-
-            const blades = viewer.entities.add({
-                position: hubPos,
-                orientation: Cesium.Transforms.headingPitchRollQuaternion(
-                    hubPos,
-                    new Cesium.HeadingPitchRoll(0, 0, 0)
-                ),
-                model: {
-                    uri: cfg.bladesAndHubUri,
-                    scale: 1,
-                    runAnimations: false
-                }
-            });
-            newEntities.push(blades);
-            rotatingBlades.push(blades);
-        });
-
-        return newEntities;
+    // 1) Determine rotor radius based on hubHeight
+    let rotorRadius;
+    if (hubHeight === 150) rotorRadius = 450;
+    else if (hubHeight === 125) rotorRadius = 350;
+    else if (hubHeight === 100) rotorRadius = 250;
+    else {
+        console.error("Invalid hub height selected!");
+        return [];
     }
 
-//ROTATE BLADES
+    const rotorDiameter = rotorRadius * 2;
+
+    // 2) Generate hexagonal positions
+    const positions = generateHexagonalTurbinePositions(cartesians, rotorDiameter);
+
+    // Important: Check if positions are generated
+    if (positions.length === 0) {
+        console.warn("No turbine positions could be generated. Polygon may be too small or spacing too large.");
+        return [];
+    }
+
+    // 3) Sample terrain height
+    const cartos = positions.map(([lon, lat]) =>
+        new Cesium.Cartographic(
+            Cesium.Math.toRadians(lon),
+            Cesium.Math.toRadians(lat),
+            0
+        )
+    );
+
+    const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
+    // TODO get turbine locations from python code
+    // Collect *actual* placed ground positions (Cartesian3)
+    const placedGroundPositions = [];
+
+    // 4) Place turbines
+    detailed.forEach(c => {
+        const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
+        placedGroundPositions.push(groundPos);
+
+        const cfg = {
+            mastAndNacelleUri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`,
+            bladesAndHubUri: `/tiles/turbines/bladesandhub${hubHeight}center.glb`,
+            hubheight: hubHeight
+        };
+
+        // Place mast + nacelle
+        const mast = viewer.entities.add({
+            name: "Wind Turbine",
+            position: groundPos,
+            model: {
+                uri: cfg.mastAndNacelleUri,
+                scale: 1,
+                runAnimations: false
+            },
+            description: `Initial hub height: ${cfg.hubheight} meters`
+        });
+        newEntities.push(mast);
+
+        // Place blades at hub height
+        const hubPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + cfg.hubheight);
+
+        const blades = viewer.entities.add({
+            position: hubPos,
+            orientation: Cesium.Transforms.headingPitchRollQuaternion(
+                hubPos,
+                new Cesium.HeadingPitchRoll(0, 0, 0)
+            ),
+            model: { uri: cfg.bladesAndHubUri, scale: 1, runAnimations: false }
+        });
+        newEntities.push(blades);
+        rotatingBlades.push(blades);
+    });
+
+    // NEW: report placed positions back to caller if requested
+    if (typeof onPlacedPositions_callback_function === "function") {
+        onPlacedPositions_callback_function(placedGroundPositions);
+    }
+
+    return newEntities;
+}
+
+
+    //ROTATE BLADES
     let rotationSpeed = Cesium.Math.toRadians(30); // 30° per second
 
     viewer.scene.preUpdate.addEventListener((scene, time) => {
@@ -986,15 +1006,24 @@ async function main() {
         // 1) remove old turbines
         ref.turbines.forEach(e => viewer.entities.remove(e));
 
+        // FIONA'S CHANGES
+        let placedPositions = null;
+
         // 2) place new ones at the same polygon & count
         const replacements = await placeTurbinesInPolygon(
             ref.positions,        // the Cartesian3[] you saved
-            newH                  // new hub height
+            newH,                  // new hub height
+            // FIONA'S CHANGES
+            (pp) => { placedPositions = pp; }
         );
 
         // 3) update the record
         ref.turbines = replacements;
         ref.hubHeight = newH;
+
+        // FIONA'S CHANGES
+        // update turbine positions to the actual placed ground positions
+        if (placedPositions) ref.positions = placedPositions;
     });
 
 

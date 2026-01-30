@@ -12,11 +12,6 @@ export async function computeAndUpdateOutputWind(ref) {
     try {
         setWindOutput("computing…");
 
-        if (ref.no_one_or_multiple_rows == 0) {
-            setWindOutput("–");
-            return;
-        }
-
         const payload = await buildAnnualWindPayloadFromPolygonRef(ref);
 
         const result = await callComputeAnnualWind(payload);
@@ -59,43 +54,35 @@ async function callComputeAnnualWind(payload) {
 // Build API input for Wind AEP from a "turbine ref" record (single or multi)
 // Python DTO expects:
 // { output: "annual", turbines: [{ id, lon, lat, hub_height_m }, ...] }
-async function buildAnnualWindPayloadFromPolygonRef(ref, height) {
+async function buildAnnualWindPayloadFromPolygonRef(ref) {
     if (!ref) throw new Error("No turbine ref");
-    if (!height) height = 100;
 
-    // Support both shapes:
-    // 1) selectedTurbineRef = { entities:[...], record:{ positions:[Cartesian3...], hubHeight } }
-    // 2) direct record-like object { positions:[...], hubHeight, id }
     const record = ref.record ?? ref;
 
+    // IMPORTANT: support your polygon record shape directly:
+    // record.positions is the ground Cartesian3[] for ALL turbines
     const positionsArr = Array.isArray(record.positions)
         ? record.positions
         : Array.from(record.positions ?? []);
 
     if (positionsArr.length === 0) throw new Error("No turbine positions in ref");
 
-    // Hub height: prefer record, otherwise UI fallback, otherwise default 100
     const hubHeight =
         Number(record.hubHeight) ||
         Number(document.getElementById("turbineHeight")?.value) ||
         100;
 
-    console.log("Fetching Output of Turbine of height: " + hubHeight + "m…")
+    const baseId = record.id ?? ref.id ?? "turbine";
 
     const turbineDTOs = positionsArr
         .map((pos, i) => {
             if (!Cesium.defined(pos)) return null;
 
             const carto = Cesium.Cartographic.fromCartesian(pos);
-            const lon = Cesium.Math.toDegrees(carto.longitude);
-            const lat = Cesium.Math.toDegrees(carto.latitude);
-
-            // Stable id (match your PV style)
-            const baseId = record.id ?? ref.id ?? "turbine";
             return {
                 id: `${baseId}_t${i}`,
-                lon,
-                lat,
+                lon: Cesium.Math.toDegrees(carto.longitude),
+                lat: Cesium.Math.toDegrees(carto.latitude),
                 hub_height_m: Math.round(hubHeight)
             };
         })
@@ -108,6 +95,8 @@ async function buildAnnualWindPayloadFromPolygonRef(ref, height) {
         turbines: turbineDTOs
     };
 }
+
+
 
 
 //-----------------VALUE RETRIEVERS-----------------
