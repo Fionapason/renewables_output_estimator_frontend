@@ -1,9 +1,9 @@
 import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import {computeAndUpdateOutputWind} from "../wind_output/wind_api.js";
+import {computeAndUpdateOutputWind, setSelectedWindOutput} from "../wind_output/wind_api.js";
 
-
+// TODO manage polygon output bugs: deleting turbine, individual output vs polygon output
 async function main() {
     'use strict';
 //Sandcastle_Begin
@@ -432,14 +432,13 @@ async function main() {
 
         const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
 
+        // OPTIONAL: if you want turbine UI to open, select the *first* turbine pair as a "single-turbine ref"
+        showPolygonOptions(polyRec)
+
         // compute AEP for the whole polygon turbine set
         await computeAndUpdateOutputWind(polyRec);
 
-        // OPTIONAL: if you want turbine UI to open, select the *first* turbine pair as a "single-turbine ref"
-        if (polyRec.turbines && polyRec.turbines.length >= 2) {
-            selectedTurbineRef = { entities: [polyRec.turbines[0], polyRec.turbines[1]], record: polyRec };
-            showTurbineOptions(selectedTurbineRef);
-        }
+
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -766,10 +765,10 @@ async function main() {
     });
 
 
-// define handler
+    // define handler
     const turbineHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 
-// CHANGE CURSOR WHEN HOVERING OVER TURBINE
+    // CHANGE CURSOR WHEN HOVERING OVER TURBINE
     turbineHandler.setInputAction(moveEvt => {
         if (turbineSelectMode) {
             const picked = viewer.scene.pick(moveEvt.endPosition);
@@ -786,7 +785,7 @@ async function main() {
         }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-// RIGHT-CLICK + S: PICK A SINGLE TURBINE (MAST+BLADES TOGETHER)
+    // RIGHT-CLICK + S: PICK A SINGLE TURBINE (MAST+BLADES TOGETHER)
     turbineHandler.setInputAction(clickEvt => {
         if (!turbineSelectMode) return;
 
@@ -838,9 +837,21 @@ async function main() {
         selectedTurbineRef = {entities: group, record: parentRec};
         showTurbineOptions(selectedTurbineRef);
 
+        const mastEnt = group[0];     // always mast, because you built group as [mast, blades]
+
+
+
+        let single_output = mastEnt.windOutput_kWh / 1000;
+        single_output = Math.round(single_output);
+        const output_text = `${single_output} MWh/year`;
+
+        setSelectedWindOutput(output_text);
+
+
+
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-// showTurbineOptions: un-hide panel & set dropdown to current height
+    // showTurbineOptions: un-hide panel & set dropdown to current height
     function showTurbineOptions(ref) {
         const panel = document.getElementById('turbineOptions');
         panel.style.display = 'block';
@@ -856,7 +867,7 @@ async function main() {
     }
 
 
-    // CHANGE HUBHEIGHT FOR SELECTED TURBINE
+    // CHANGE HUB HEIGHT FOR SELECTED TURBINE
     document.getElementById('turbineHubHeight').addEventListener('change', async function () {
         if (!selectedTurbineRef) return;
         const newH = parseInt(this.value, 10);
@@ -913,28 +924,44 @@ async function main() {
         selectedTurbineRef.entities = [mast, blades];
 
         // FIONA'S CHANGES
-        showTurbineOptions(selectedTurbineRef);
+        showPolygonOptions(selectedTurbineRef)
         await computeAndUpdateOutputWind(selectedTurbineRef);
     });
 
 
-// DELETE SINGLE TURBINE
+    // DELETE SINGLE TURBINE
 
-    document.getElementById('deleteTurbineBtn').onclick = () => {
+    document.getElementById('deleteTurbineBtn').onclick = async () => {
         if (!selectedTurbineRef) return;
+
+        const rec = selectedTurbineRef.record;
+
+        // --- compute turbine index BEFORE modifying arrays ---
+        // We assume selectedTurbineRef.entities = [mast, blades]
+        const mastEntity = selectedTurbineRef.entities[0];
+        const mastIdxInRec = rec.turbines.indexOf(mastEntity);
+        const turbineIndex = mastIdxInRec >= 0 ? Math.floor(mastIdxInRec / 2) : -1;
 
         // remove from view
         selectedTurbineRef.entities.forEach(e => viewer.entities.remove(e));
         rotatingBlades = rotatingBlades.filter(b => !selectedTurbineRef.entities.includes(b));
 
-        // remove from record
-        const rec = selectedTurbineRef.record;
+        // remove from record: turbines (entities)
         rec.turbines = rec.turbines.filter(e => !selectedTurbineRef.entities.includes(e));
+
+        // remove from record: positions (one per turbine)
+        if (turbineIndex >= 0 && Array.isArray(rec.positions)) {
+            rec.positions.splice(turbineIndex, 1);
+        }
 
         // clear selection & hide panel
         selectedTurbineRef = null;
         document.getElementById('turbineOptions').style.display = 'none';
+
+        // recompute polygon output (and per-turbine outputs)
+        await computeAndUpdateOutputWind(rec);
     };
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
