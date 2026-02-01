@@ -82,33 +82,47 @@
 
            <!---- polygon options ---------------------------------------------------------------------------->
         <div id="polygonOptions" class="panel" style="background: #F7F4C8; display:none; position:absolute; top:10px; left:150px; width:150px;">
-          <h4>polygon options</h4>
+            <h4>polygon options</h4>
 
 
 
             <label>change hub heights:</label>
-          <select id="polyHubHeight">
+
+            <select id="polyHubHeight">
             <option value="150">150 m</option>
             <option value="125">125 m</option>
             <option value="100">100 m</option>
-          </select>
-          <hr>
-          <button id="deletePolygonBtn">delete polygon</button>
+            </select>
+
+            <hr>
+            <div id="polygonturbine_windOutput" style="font-family:Bahnschrift; font-size:13px; color:#333;">
+                output: —
+            </div>
+
+            <button id="optimizePolygonBtn">OPTIMIZE LAYOUT</button>
+
+            <button id="deletePolygonBtn">delete polygon</button>
 
         </div>
 
 
            <!---- turbine options ---------------------------------------------------------------------------->
         <div id="turbineOptions" class="panel" style="background: #D4AB69; display:none; position:absolute; top:10px; left:350px; width:150px; z-index:100;">
-          <h4>turbine options</h4>
-          <label>change hub height:</label>
-          <select id="turbineHubHeight">
+
+            <h4>turbine options</h4>
+            <label>change hub height:</label>
+            <select id="turbineHubHeight">
             <option value="150">150 m</option>
             <option value="125">125 m</option>
             <option value="100">100 m</option>
-          </select>
-          <hr>
-          <button id="deleteTurbineBtn">delete turbine</button>
+            </select>
+
+            <hr>
+            <div id="singleturbine_windOutput" style="font-family:Bahnschrift; font-size:13px; color:#333;">
+                output: —
+            </div>
+
+            <button id="deleteTurbineBtn">delete turbine</button>
         </div>
 
 

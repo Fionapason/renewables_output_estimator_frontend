@@ -1,11 +1,15 @@
 import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
+import {computeAndUpdateOutputWind, setSelectedWindOutput, optimizePolygon} from "../wind_output/wind_api.js";
+import {getPolygonVerticesCartesian, removePolygonTurbines, generateCandidateLonLat, placeTurbinesAtLonLat} from "../wind_output/optimizer_helpers.js"
+import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
 
-// TODO SINGLE TURBINE OUTPUT
+
+// TODO manage polygon output bugs: changing hub height, race condition when making changes before it computes
 async function main() {
     'use strict';
-//Sandcastle_Begin
+
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // SCENE
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -293,10 +297,10 @@ async function main() {
     let activeShapePoints = [];
     let activeShape;
     let floatingPoint;
-// Track all helper‐point entities so we can hide them later
+    // Track all helper‐point entities so we can hide them later
     let activePointEntities = [];
 
-// helper function to toggle Cesium default event handling, so no interference!
+    // helper function to toggle Cesium default event handling, so no interference!
     function toggleCesiumDefaultHandlers(enable) {
         const screenSpaceHandler = viewer.screenSpaceEventHandler;
         if (!screenSpaceHandler) return;
@@ -339,11 +343,11 @@ async function main() {
 
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 
-// START DRAWING WITH LEFT CLICK
+    // START DRAWING WITH LEFT CLICK
     handler.setInputAction((event) => {
         const picked = viewer.scene.pick(event.position);
         if (Cesium.defined(picked) && picked.id && picked.id.model) {
-// clicked a turbine → don’t start/continue a polygon
+            // clicked a turbine → don’t start/continue a polygon
             return;
         }
         const earthPosition = viewer.scene.pickPosition(event.position);
@@ -362,7 +366,7 @@ async function main() {
         createPoint(earthPosition);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-// MOVE FLOATING POINT ON MOUSE MOVE
+    // MOVE FLOATING POINT ON MOUSE MOVE
     handler.setInputAction((event) => {
         if (!drawing) return;
         const newPosition = viewer.scene.pickPosition(event.endPosition);
@@ -373,11 +377,11 @@ async function main() {
         activeShapePoints.push(newPosition);
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-// global storage
+    // global storage
     const polygonTurbineRecords = [];
     let rotatingBlades = [];
 
-// RIGHT-CLICK: FINISH POLYGON AND PLACE CHOSEN NUMBER AND HUBHEIGHT OF TURBINES
+    // RIGHT-CLICK: FINISH POLYGON AND PLACE CHOSEN NUMBER AND HUBHEIGHT OF TURBINES
     handler.setInputAction(async (clickEvent) => {
         // only finish drawing if we’re in draw‐mode; otherwise let selectHandler handle it
         if (!drawing) {
@@ -410,23 +414,39 @@ async function main() {
 
         // before pushing into polygonTurbineRecords
         const positionsCopy = activeShapePoints.slice(); // copy the final vertices
-        // …
-        const newTurbines = await placeTurbinesInPolygon(activeShapePoints, H);
+
+        // FIONA'S CHANGES
+        let placedPositions = null;
+
+        const newTurbines = await placeTurbinesInPolygon(
+            activeShapePoints,
+            H,
+            (pp) => { placedPositions = pp; }
+        );
 
         // store them so we never delete others, **and** remember N, H, and positions
         polygonTurbineRecords.push({
             polygon: polygonEntity,
+            polygonVertices: positionsCopy,       // <-- keep the polygon geometry
             turbines: newTurbines,
-            positions: positionsCopy,
-
+            // store the actual turbine positions for API + later edits
+             positions: placedPositions ?? [],     // <-- turbine ground positions only
             hubHeight: H
         });
+
+        const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
+
+        showPolygonOptions(polyRec)
+        // compute AEP for the whole polygon turbine set
+        await computeAndUpdateOutputWind(polyRec);
+
+
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
 
-// TEMPORARY SHAPE
+    // TEMPORARY SHAPE
     function drawShape(positionData) {
         return viewer.entities.add({
             polygon: {
@@ -440,7 +460,7 @@ async function main() {
         });
     }
 
-// FINAL POLYGON SHAPE
+    // FINAL POLYGON SHAPE
     function drawPolygon(positionData) {
         return viewer.entities.add({
             polygon: {
@@ -450,7 +470,7 @@ async function main() {
         });
     }
 
-// VISUAL HELPER POINT
+    // VISUAL HELPER POINT
     function createPoint(worldPosition) {
         const ent = viewer.entities.add({
             position: worldPosition,
@@ -469,103 +489,24 @@ async function main() {
 // PLACE TURBINES
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-//HELPER FUNCTION: 2D point-in-polygon (ray-cast)
-    function pointInPolygon(pt, vs) {
-        const [x, y] = pt;
-        let inside = false;
-        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-            const [xi, yi] = vs[i], [xj, yj] = vs[j];
-            const intersect = ((yi > y) !== (yj > y))
-                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
 
-// SAMPLE RANDON POINTS IN POLYGON (TO BE REPLACED BY SEARCHALGORITHM SAMPLING POINTS BASED ON ENERGY PRODUCTION)
-    function computeLonLatCentroid(lonLatArray) {
-        let sumLon = 0;
-        let sumLat = 0;
-        lonLatArray.forEach(([lon, lat]) => {
-            sumLon += lon;
-            sumLat += lat;
-        });
-        return [sumLon / lonLatArray.length, sumLat / lonLatArray.length];
-    }
-
-
-    function generateHexagonalTurbinePositions(cartesians, Distance) {
-        const minDistance = Distance;
-
-        // Convert polygon cartesians to lon/lat
-        const poly = cartesians.map(pt => {
-            const c = Cesium.Cartographic.fromCartesian(pt);
-            return [Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude)];
-        });
-
-        // Calculate bounding box
-        let [minLon, maxLon, minLat, maxLat] = [180, -180, 90, -90];
-        poly.forEach(([lon, lat]) => {
-            minLon = Math.min(minLon, lon);
-            maxLon = Math.max(maxLon, lon);
-            minLat = Math.min(minLat, lat);
-            maxLat = Math.max(maxLat, lat);
-        });
-
-        // Approximate meters per degree at mid-latitude
-        const avgLatRad = Cesium.Math.toRadians((minLat + maxLat) / 2);
-        const metersPerDegreeLat = 111320;
-        const metersPerDegreeLon = 111320 * Math.cos(avgLatRad);
-
-        // Convert spacing from meters to degrees
-        const latSpacing = (minDistance * Math.sqrt(3) / 2) / metersPerDegreeLat;
-        const lonSpacing = minDistance / metersPerDegreeLon;
-
-        const points = [];
-        let rowIndex = 0;
-        for (let lat = minLat; lat <= maxLat; lat += latSpacing) {
-            const lonOffset = (rowIndex % 2 === 0) ? 0 : lonSpacing / 2;
-            for (let lon = minLon + lonOffset; lon <= maxLon; lon += lonSpacing) {
-                if (pointInPolygon([lon, lat], poly)) {
-                    points.push([lon, lat]);
-                }
-            }
-            rowIndex++;
-        }
-
-        //if no valid points or only one place them in the center of the polygon
-        if (points.length === 0) {
-            const centroid = computeLonLatCentroid(poly);
-            if (pointInPolygon(centroid, poly)) {
-                points.push(centroid);
-            }
-        }
-
-        return points;
-    }
-
-
-// PLACE TURBINES INSIDE THE POLYGON
-
-    async function placeTurbinesInPolygon(cartesians, hubHeight) {
+    // PLACE TURBINES INSIDE THE POLYGON
+    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */ ) {
         const newEntities = [];
 
         // 1) Determine rotor radius based on hubHeight
         let rotorRadius;
-        if (hubHeight === 150) {
-            rotorRadius = 450;
-        } else if (hubHeight === 125) {
-            rotorRadius = 350;
-        } else if (hubHeight === 100) {
-            rotorRadius = 250;
-        } else {
+        if (hubHeight === 150) rotorRadius = 450;
+        else if (hubHeight === 125) rotorRadius = 350;
+        else if (hubHeight === 100) rotorRadius = 250;
+        else {
             console.error("Invalid hub height selected!");
             return [];
         }
 
-        let rotorDiameter = rotorRadius * 2;
+        const rotorDiameter = rotorRadius * 2;
 
-        // 2) Generate hexagonal positions based on spacing
+        // 2) Generate hexagonal positions
         const positions = generateHexagonalTurbinePositions(cartesians, rotorDiameter);
 
         // Important: Check if positions are generated
@@ -574,7 +515,7 @@ async function main() {
             return [];
         }
 
-        // 3) Sample terrain height for each generated position
+        // 3) Sample terrain height
         const cartos = positions.map(([lon, lat]) =>
             new Cesium.Cartographic(
                 Cesium.Math.toRadians(lon),
@@ -584,10 +525,13 @@ async function main() {
         );
 
         const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
-        // TODO get turbine locations from python code
-        // 4) Place turbines at sampled locations
+        // Collect *actual* placed ground positions (Cartesian3)
+        const placedGroundPositions = [];
+
+        // 4) Place turbines
         detailed.forEach(c => {
             const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
+            placedGroundPositions.push(groundPos);
 
             const cfg = {
                 mastAndNacelleUri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`,
@@ -617,20 +561,22 @@ async function main() {
                     hubPos,
                     new Cesium.HeadingPitchRoll(0, 0, 0)
                 ),
-                model: {
-                    uri: cfg.bladesAndHubUri,
-                    scale: 1,
-                    runAnimations: false
-                }
+                model: { uri: cfg.bladesAndHubUri, scale: 1, runAnimations: false }
             });
             newEntities.push(blades);
             rotatingBlades.push(blades);
         });
 
+        // NEW: report placed positions back to caller if requested
+        if (typeof onPlacedPositions_callback_function === "function") {
+            onPlacedPositions_callback_function(placedGroundPositions);
+        }
+
         return newEntities;
     }
 
-//ROTATE BLADES
+
+    //ROTATE BLADES
     let rotationSpeed = Cesium.Math.toRadians(30); // 30° per second
 
     viewer.scene.preUpdate.addEventListener((scene, time) => {
@@ -745,10 +691,10 @@ async function main() {
     });
 
 
-// define handler
+    // define handler
     const turbineHandler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 
-// CHANGE CURSOR WHEN HOVERING OVER TURBINE
+    // CHANGE CURSOR WHEN HOVERING OVER TURBINE
     turbineHandler.setInputAction(moveEvt => {
         if (turbineSelectMode) {
             const picked = viewer.scene.pick(moveEvt.endPosition);
@@ -765,7 +711,7 @@ async function main() {
         }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
-// RIGHT-CLICK + S: PICK A SINGLE TURBINE (MAST+BLADES TOGETHER)
+    // RIGHT-CLICK + S: PICK A SINGLE TURBINE (MAST+BLADES TOGETHER)
     turbineHandler.setInputAction(clickEvt => {
         if (!turbineSelectMode) return;
 
@@ -817,9 +763,21 @@ async function main() {
         selectedTurbineRef = {entities: group, record: parentRec};
         showTurbineOptions(selectedTurbineRef);
 
+        const mastEnt = group[0];     // always mast, because you built group as [mast, blades]
+
+
+
+        let single_output = mastEnt.windOutput_kWh / 1000;
+        single_output = Math.round(single_output);
+        const output_text = `${single_output} MWh/year`;
+
+        setSelectedWindOutput(output_text);
+
+
+
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-// showTurbineOptions: un-hide panel & set dropdown to current height
+    // showTurbineOptions: un-hide panel & set dropdown to current height
     function showTurbineOptions(ref) {
         const panel = document.getElementById('turbineOptions');
         panel.style.display = 'block';
@@ -835,8 +793,7 @@ async function main() {
     }
 
 
-// CHANGE HUBHEIGHT FOR SELECTED TURBINE
-
+    // CHANGE HUB HEIGHT FOR SELECTED TURBINE
     document.getElementById('turbineHubHeight').addEventListener('change', async function () {
         if (!selectedTurbineRef) return;
         const newH = parseInt(this.value, 10);
@@ -879,6 +836,8 @@ async function main() {
         rec.turbines = rec.turbines
             .filter(e => !oldGroup.includes(e))
             .concat([mast, blades]);
+        // FIONA'S CHANGES
+        rec.hubHeight = newH;
 
         // highlight new ones
         [mast, blades].forEach(ent => {
@@ -889,26 +848,46 @@ async function main() {
 
         // update selection
         selectedTurbineRef.entities = [mast, blades];
+
+        // FIONA'S CHANGES
+        showPolygonOptions(selectedTurbineRef)
+        await computeAndUpdateOutputWind(selectedTurbineRef);
     });
 
 
-// DELETE SINGLE TURBINE
+    // DELETE SINGLE TURBINE
 
-    document.getElementById('deleteTurbineBtn').onclick = () => {
+    document.getElementById('deleteTurbineBtn').onclick = async () => {
         if (!selectedTurbineRef) return;
+
+        const rec = selectedTurbineRef.record;
+
+        // --- compute turbine index BEFORE modifying arrays ---
+        // We assume selectedTurbineRef.entities = [mast, blades]
+        const mastEntity = selectedTurbineRef.entities[0];
+        const mastIdxInRec = rec.turbines.indexOf(mastEntity);
+        const turbineIndex = mastIdxInRec >= 0 ? Math.floor(mastIdxInRec / 2) : -1;
 
         // remove from view
         selectedTurbineRef.entities.forEach(e => viewer.entities.remove(e));
         rotatingBlades = rotatingBlades.filter(b => !selectedTurbineRef.entities.includes(b));
 
-        // remove from record
-        const rec = selectedTurbineRef.record;
+        // remove from record: turbines (entities)
         rec.turbines = rec.turbines.filter(e => !selectedTurbineRef.entities.includes(e));
+
+        // remove from record: positions (one per turbine)
+        if (turbineIndex >= 0 && Array.isArray(rec.positions)) {
+            rec.positions.splice(turbineIndex, 1);
+        }
 
         // clear selection & hide panel
         selectedTurbineRef = null;
         document.getElementById('turbineOptions').style.display = 'none';
+
+        // recompute polygon output (and per-turbine outputs)
+        await computeAndUpdateOutputWind(rec);
     };
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -970,7 +949,7 @@ async function main() {
         hubSel.value = String(ref.hubHeight);
     }
 
-// whenever the user picks a new hub height in the panel:
+    // whenever the user picks a new hub height in the panel:
     document.getElementById('polyHubHeight').addEventListener('change', async function () {
         if (!selectedPolygonRef) return;
 
@@ -980,16 +959,34 @@ async function main() {
         // 1) remove old turbines
         ref.turbines.forEach(e => viewer.entities.remove(e));
 
+        // FIONA'S CHANGES
+        let placedPositions = null;
+
+        const verts = getPolygonVerticesCartesian(ref);
         // 2) place new ones at the same polygon & count
         const replacements = await placeTurbinesInPolygon(
-            ref.positions,        // the Cartesian3[] you saved
-            newH                  // new hub height
+            verts,
+            newH,
+            (pp)=>{ placedPositions = pp; }
         );
 
         // 3) update the record
         ref.turbines = replacements;
         ref.hubHeight = newH;
+
+        // FIONA'S CHANGES
+        // update turbine positions to the actual placed ground positions
+        if (placedPositions) ref.positions = placedPositions;
+        await computeAndUpdateOutputWind(ref);
     });
+
+
+   // FIONA'S CHANGES
+    document.getElementById("optimizePolygonBtn").onclick = async () => {
+        console.log("OPTIMIZE BUTTON CLICKED")
+        await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
+    };
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -997,7 +994,7 @@ async function main() {
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-// KEYDOWN / KEYUP TO TOGGLE S MODE
+    // KEYDOWN / KEYUP TO TOGGLE S MODE
     window.addEventListener('keydown', e => {
         if (e.key.toLowerCase() === 'r') {
             resizeMode = true;
@@ -1083,7 +1080,7 @@ async function main() {
         }
     });
 
-// SELECTING THE TURBINE BY RIGHT CLICK
+    // SELECTING THE TURBINE BY RIGHT CLICK
     moveHandler.setInputAction((down) => {
         if (!isMKeyDown) return;
         viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -1183,7 +1180,7 @@ async function main() {
     });
 
 
-// STOP DRAGGING
+    // STOP DRAGGING
     moveHandler.setInputAction(() => {
         moveHandler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE);
         isDragging = false;
@@ -1305,6 +1302,9 @@ async function main() {
 
         selectedTurbineRef = {entities: [mast, blades], record: record};
         showTurbineOptions(selectedTurbineRef);
+
+        // FIONA'S CHANGES
+        await computeAndUpdateOutputWind(selectedTurbineRef);
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
