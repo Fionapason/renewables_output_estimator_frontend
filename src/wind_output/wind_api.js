@@ -1,4 +1,10 @@
 import * as Cesium from "cesium";
+import {
+    generateCandidateLonLat,
+    getPolygonVerticesCartesian,
+    placeTurbinesAtLonLat,
+    removePolygonTurbines
+} from "./optimizer_helpers.js";
 
 const WIND_API_BASE = "http://localhost:8000";
 
@@ -103,6 +109,101 @@ async function callComputeAnnualWind(payload) {
     });
     if (!res.ok) throw new Error(await res.text());
     return await res.json(); // expects { annual_kWh: number }
+}
+
+export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades) {
+    if (!selectedPolygonRef) return;
+
+    const ref = selectedPolygonRef;
+
+    // Hub height from panel (already synced in showPolygonOptions)
+    const hubHeight = parseInt(document.getElementById("polyHubHeight").value, 10) || ref.hubHeight || 100;
+
+    // Rotor diameter: you should replace this with real turbine metadata later
+    // (Right now you used rotorRadius=250/350/450, so diameter=500/700/900)
+    const rotorDiameter_m = (hubHeight === 150) ? 900 : (hubHeight === 125) ? 700 : 500;
+
+    // Minimum spacing in rotor diameters (D) — replace with UI value later if you add one
+    const min_spacing_D = 1.0;
+
+    // Candidate density:
+    // - interior spacing smaller than min spacing (so optimizer can choose 0.5D shifts etc.)
+    // - boundary sampled more densely
+    const interiorSpacing_m = rotorDiameter_m * (min_spacing_D * 0.5);
+    const boundaryStep_m = rotorDiameter_m * 0.25;
+
+    const verts = getPolygonVerticesCartesian(ref);
+    console.log("Exited getPolygonVerticesCartesian")
+    if (!verts || verts.length < 3) return;
+
+    // 1) Generate candidate lon/lat
+    const candidateLonLat = generateCandidateLonLat(verts, interiorSpacing_m, boundaryStep_m);
+    console.log("Entered generateCandidateLonLat")
+    if (candidateLonLat.length === 0) return;
+
+    // 2) Sample terrain height for candidates (hub_elevation_m = ground height)
+    const cartos = candidateLonLat.map(([lon, lat]) =>
+        new Cesium.Cartographic(Cesium.Math.toRadians(lon), Cesium.Math.toRadians(lat), 0)
+    );
+    const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
+
+    const candidates = detailed.map((c, i) => ({
+        id: `c${i}`,
+        lon: Cesium.Math.toDegrees(c.longitude),
+        lat: Cesium.Math.toDegrees(c.latitude),
+        hub_elevation_m: c.height
+    }));
+
+    // 3) Build DTO
+    const dto = {
+        hub_height_m: hubHeight,
+        rotor_diameter_m: rotorDiameter_m,
+        min_spacing_D: min_spacing_D,
+        candidates
+    };
+
+    // 4) Call optimizer
+    let result;
+    try {
+        const res = await fetch(WIND_API_BASE+ "/optimize-annual", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(dto)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        result = await res.json();
+    } catch (e) {
+        console.error("Optimize API error:", e);
+        return;
+    }
+
+    // Expected: { turbines: [{lat,lon,hub_elevation_m?}, ...], num_turbines, total_aep_kwh }
+    const optimized = result?.turbines ?? [];
+    if (optimized.length === 0) return;
+
+    // 5) Remove old (hex) turbines before placing new ones
+    removePolygonTurbines(ref, viewer, rotatingBlades);
+
+    // 6) Place optimized turbines
+    const lonLatList = optimized.map(t => [t.lon, t.lat]);
+    const newEntities = await placeTurbinesAtLonLat(lonLatList, hubHeight, viewer, rotatingBlades);
+
+    // 7) Update record + recompute AEP
+    ref.turbines = newEntities;
+    ref.hubHeight = hubHeight;
+
+    // store turbine ground positions (for compute-annual payload)
+    // NOTE: we can reuse terrain heights we already sampled if you want,
+    // but simplest is: derive ground positions from the mast entities
+    const now = Cesium.JulianDate.now();
+    ref.positions = [];
+    for (let i = 0; i < newEntities.length; i += 2) { // mast indices 0,2,4,...
+        const mast = newEntities[i];
+        const p = mast.position?.getValue(now);
+        if (p) ref.positions.push(p);
+    }
+
+    await computeAndUpdateOutputWind(ref);
 }
 
 

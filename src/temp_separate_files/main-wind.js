@@ -1,12 +1,15 @@
 import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import {computeAndUpdateOutputWind, setSelectedWindOutput} from "../wind_output/wind_api.js";
+import {computeAndUpdateOutputWind, setSelectedWindOutput, optimizePolygon} from "../wind_output/wind_api.js";
+import {getPolygonVerticesCartesian, removePolygonTurbines, generateCandidateLonLat, placeTurbinesAtLonLat} from "../wind_output/optimizer_helpers.js"
+import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
+
 
 // TODO manage polygon output bugs: changing hub height, race condition when making changes before it computes
 async function main() {
     'use strict';
-//Sandcastle_Begin
+
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // SCENE
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -424,9 +427,10 @@ async function main() {
         // store them so we never delete others, **and** remember N, H, and positions
         polygonTurbineRecords.push({
             polygon: polygonEntity,
+            polygonVertices: positionsCopy,       // <-- keep the polygon geometry
             turbines: newTurbines,
             // store the actual turbine positions for API + later edits
-            positions: placedPositions ?? positionsCopy,
+             positions: placedPositions ?? [],     // <-- turbine ground positions only
             hubHeight: H
         });
 
@@ -485,84 +489,9 @@ async function main() {
 // PLACE TURBINES
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-    //HELPER FUNCTION: 2D point-in-polygon (ray-cast)
-    function pointInPolygon(pt, vs) {
-        const [x, y] = pt;
-        let inside = false;
-        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-            const [xi, yi] = vs[i], [xj, yj] = vs[j];
-            const intersect = ((yi > y) !== (yj > y))
-                && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
-
-    // SAMPLE RANDOM POINTS IN POLYGON (TO BE REPLACED BY SEARCH ALGORITHM SAMPLING POINTS BASED ON ENERGY PRODUCTION)
-    function computeLonLatCentroid(lonLatArray) {
-        let sumLon = 0;
-        let sumLat = 0;
-        lonLatArray.forEach(([lon, lat]) => {
-            sumLon += lon;
-            sumLat += lat;
-        });
-        return [sumLon / lonLatArray.length, sumLat / lonLatArray.length];
-    }
-
-
-    function generateHexagonalTurbinePositions(cartesians, Distance) {
-        const minDistance = Distance;
-
-        // Convert polygon cartesians to lon/lat
-        const poly = cartesians.map(pt => {
-            const c = Cesium.Cartographic.fromCartesian(pt);
-            return [Cesium.Math.toDegrees(c.longitude), Cesium.Math.toDegrees(c.latitude)];
-        });
-
-        // Calculate bounding box
-        let [minLon, maxLon, minLat, maxLat] = [180, -180, 90, -90];
-        poly.forEach(([lon, lat]) => {
-            minLon = Math.min(minLon, lon);
-            maxLon = Math.max(maxLon, lon);
-            minLat = Math.min(minLat, lat);
-            maxLat = Math.max(maxLat, lat);
-        });
-
-        // Approximate meters per degree at mid-latitude
-        const avgLatRad = Cesium.Math.toRadians((minLat + maxLat) / 2);
-        const metersPerDegreeLat = 111320;
-        const metersPerDegreeLon = 111320 * Math.cos(avgLatRad);
-
-        // Convert spacing from meters to degrees
-        const latSpacing = (minDistance * Math.sqrt(3) / 2) / metersPerDegreeLat;
-        const lonSpacing = minDistance / metersPerDegreeLon;
-
-        const points = [];
-        let rowIndex = 0;
-        for (let lat = minLat; lat <= maxLat; lat += latSpacing) {
-            const lonOffset = (rowIndex % 2 === 0) ? 0 : lonSpacing / 2;
-            for (let lon = minLon + lonOffset; lon <= maxLon; lon += lonSpacing) {
-                if (pointInPolygon([lon, lat], poly)) {
-                    points.push([lon, lat]);
-                }
-            }
-            rowIndex++;
-        }
-
-        //if no valid points or only one place them in the center of the polygon
-        if (points.length === 0) {
-            const centroid = computeLonLatCentroid(poly);
-            if (pointInPolygon(centroid, poly)) {
-                points.push(centroid);
-            }
-        }
-
-        return points;
-    }
-
 
     // PLACE TURBINES INSIDE THE POLYGON
-    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */) {
+    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */ ) {
         const newEntities = [];
 
         // 1) Determine rotor radius based on hubHeight
@@ -596,7 +525,6 @@ async function main() {
         );
 
         const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
-        // TODO get turbine locations from python code
         // Collect *actual* placed ground positions (Cartesian3)
         const placedGroundPositions = [];
 
@@ -1034,12 +962,12 @@ async function main() {
         // FIONA'S CHANGES
         let placedPositions = null;
 
+        const verts = getPolygonVerticesCartesian(ref);
         // 2) place new ones at the same polygon & count
         const replacements = await placeTurbinesInPolygon(
-            ref.positions,        // the Cartesian3[] you saved
-            newH,                  // new hub height
-            // FIONA'S CHANGES
-            (pp) => { placedPositions = pp; }
+            verts,
+            newH,
+            (pp)=>{ placedPositions = pp; }
         );
 
         // 3) update the record
@@ -1051,6 +979,14 @@ async function main() {
         if (placedPositions) ref.positions = placedPositions;
         await computeAndUpdateOutputWind(ref);
     });
+
+
+   // FIONA'S CHANGES
+    document.getElementById("optimizePolygonBtn").onclick = async () => {
+        console.log("OPTIMIZE BUTTON CLICKED")
+        await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
+    };
+
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
