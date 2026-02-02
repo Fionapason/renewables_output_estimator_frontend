@@ -1,9 +1,26 @@
 import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import {computeAndUpdateOutputWind, setSelectedWindOutput, optimizePolygon} from "../wind_output/wind_api.js";
+import {computeAndUpdateOutputWind, optimizePolygon} from "../wind_output/wind_api.js";
 import {getPolygonVerticesCartesian, removePolygonTurbines, generateCandidateLonLat, placeTurbinesAtLonLat} from "../wind_output/optimizer_helpers.js"
 import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
+import {showPolygonOutput, closePolygonOutput, setSelectedWindOutput} from "../wind_output/output_ui.js";
+import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
+
+
+// FIONA'S CHANGES
+let canvasLoader = null;
+function getCanvasLoader() {
+  if (canvasLoader) return canvasLoader;
+
+  const canvas = document.getElementById("optimizerCanvas");
+  if (!canvas) {
+    throw new Error("optimizerCanvas not found in DOM (panel not rendered yet?)");
+  }
+
+  canvasLoader = createOptimizerCanvasLoader();
+  return canvasLoader;
+}
 
 
 // TODO manage polygon output bugs: changing hub height, race condition when making changes before it computes
@@ -437,6 +454,7 @@ async function main() {
         const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
 
         showPolygonOptions(polyRec)
+        showPolygonOutput(polyRec)
         // compute AEP for the whole polygon turbine set
         await computeAndUpdateOutputWind(polyRec);
 
@@ -768,7 +786,7 @@ async function main() {
 
 
         let single_output = mastEnt.windOutput_kWh / 1000;
-        single_output = Math.round(single_output);
+        single_output = Math.round(single_output/100) * 100;
         const output_text = `${single_output} MWh/year`;
 
         setSelectedWindOutput(output_text);
@@ -851,6 +869,7 @@ async function main() {
 
         // FIONA'S CHANGES
         showPolygonOptions(selectedTurbineRef)
+        showPolygonOutput(selectedTurbineRef)
         await computeAndUpdateOutputWind(selectedTurbineRef);
     });
 
@@ -938,6 +957,8 @@ async function main() {
 
         selectedPolygonRef = null;
         document.getElementById('polygonOptions').style.display = 'none';
+        // FIONA'S CHANGES
+        closePolygonOutput()
     };
 
     function showPolygonOptions(ref) {
@@ -982,10 +1003,26 @@ async function main() {
 
 
    // FIONA'S CHANGES
-    document.getElementById("optimizePolygonBtn").onclick = async () => {
-        console.log("OPTIMIZE BUTTON CLICKED")
-        await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
-    };
+
+    async function runOptimization() {
+        const loaderEl = document.getElementById("optimizerLoader");
+        loaderEl.hidden = false;
+
+        const loader = getCanvasLoader();  // <-- ensures not null
+        loader.start();
+
+        let ref = null
+
+      try {
+        ref = await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
+      } finally {
+          loader.stop();
+          loaderEl.hidden = true;
+      }
+     await computeAndUpdateOutputWind(ref);
+    }
+
+    document.getElementById("optimizePolygonBtn").addEventListener("click", runOptimization);
 
 
 

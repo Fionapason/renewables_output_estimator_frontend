@@ -1904,7 +1904,7 @@ async function main() {
         rightSouthBtn.classList.remove('active');
     };
 
-// SYNC THE BUTTONS AND NUMBERS WITH THE CURRENT SELECTION
+    // SYNC THE BUTTONS AND NUMBERS WITH THE CURRENT SELECTION
     function showPolygonOptions(ref) {
         // FIONA'S CHANGES
         selectedPolygonRef = ref;

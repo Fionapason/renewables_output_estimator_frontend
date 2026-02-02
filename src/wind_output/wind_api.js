@@ -5,6 +5,7 @@ import {
     placeTurbinesAtLonLat,
     removePolygonTurbines
 } from "./optimizer_helpers.js";
+import {setPolygonWindOutput, setSelectedWindOutput} from "./output_ui.js";
 
 const WIND_API_BASE = "http://localhost:8000";
 
@@ -18,8 +19,8 @@ export async function computeAndUpdateOutputWind(ref) {
     const mastEntity = null
 
     try {
-        setPolygonWindOutput("computing…");
-        setSelectedWindOutput("computing…");
+        setPolygonWindOutput("Computing…");
+        setSelectedWindOutput("Computing…");
 
         const payload = await buildAnnualWindPayloadFromPolygonRef(ref);
 
@@ -65,39 +66,30 @@ export async function computeAndUpdateOutputWind(ref) {
 
                     if (mastEntity && kWh != null) {
                         mastEntity.windOutput_kWh = kWh; // custom property
-                        mastEntity.description = `Hub height: ${rec.hubHeight} m<br/>Annual: ${Math.round(kWh / 1000)} MWh`;
+                        const MWh = Math.round(kWh / 1000)
+                        const rounded_MWh = Math.round(MWh / 100) * 100
+                        mastEntity.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_MWh} MWh/year`;
                     }
                 }
             }
         }
 
         const mwhTotal = kwh / 1000;
-        setPolygonWindOutput(`${Math.round(mwhTotal)} MWh/year`);
+        const rounded_mwhTotal = Math.round(mwhTotal / 100)*100
+        setPolygonWindOutput(`${rounded_mwhTotal} MWh/year`);
         if (mastEntity != null) {
 
             let single_output = mastEntity.windOutput_kWh / 1000;
-            single_output = Math.round(single_output);
+            single_output = Math.round(single_output / 100) * 100;
             const output_text = `${single_output} MWh/year`;
 
             setSelectedWindOutput(output_text);
         }
     } catch (e) {
         console.error(e);
-        setPolygonWindOutput(`error`);
-        setSelectedWindOutput(`error`);
+        setPolygonWindOutput(`ERROR`);
+        setSelectedWindOutput(`ERROR`);
     }
-}
-
-// Display calculated Output
-function setPolygonWindOutput(text_polygon) {
-
-    const el_polyongturbine = document.getElementById("polygonturbine_windOutput");
-    if (el_polyongturbine) el_polyongturbine.textContent = `output: ${text_polygon}`;
-}
-
-export function setSelectedWindOutput(text_single) {
-    const el_singleturbine = document.getElementById("singleturbine_windOutput");
-    if (el_singleturbine) el_singleturbine.textContent = `output: ${text_single}`
 }
 
 // Make API Call
@@ -203,7 +195,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
         if (p) ref.positions.push(p);
     }
 
-    await computeAndUpdateOutputWind(ref);
+    return ref
 }
 
 
@@ -250,17 +242,4 @@ async function buildAnnualWindPayloadFromPolygonRef(ref) {
         output: "annual",
         turbines: turbineDTOs
     };
-}
-
-
-
-
-//-----------------VALUE RETRIEVERS-----------------
-
-// Retrieve Tilt from UI
-function getTiltModeFromUI(ref) {
-    if (document.getElementById("tilt30Btn")?.classList.contains("active")) return 30;
-    if (document.getElementById("tilt75Btn")?.classList.contains("active")) return 75;
-
-    return (ref.y === 0.65) ? 75 : 30;; // default if auto is active or none is set
 }
