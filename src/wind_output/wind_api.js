@@ -10,87 +10,87 @@ import {setPolygonWindOutput, setSelectedWindOutput} from "./output_ui.js";
 const WIND_API_BASE = "http://localhost:8080";
 
 // SET OUTPUT
-export async function computeAndUpdateOutputWind(ref) {
+export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
     if (!ref) {
         setPolygonWindOutput("—");
+        setSelectedWindOutput("—");
         return;
     }
-
-    const mastEntity = null
 
     try {
         setPolygonWindOutput("Computing…");
         setSelectedWindOutput("Computing…");
 
         const payload = await buildAnnualWindPayloadFromPolygonRef(ref);
-
         const result = await callComputeAnnualWind(payload);
 
-        const kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
-        if (kwh == null) {
+        const total_kWh = result?.annual_kWh;
+        if (total_kWh == null) {
             setPolygonWindOutput("API ok, missing annual_kWh");
+            setSelectedWindOutput("—");
             return;
         }
-        const mwh = kwh / 1000
+
         const rec = ref.record ?? ref;
 
-        // --- write per-turbine outputs back onto the record ---
+        // --- store per turbine outputs ---
         const per = result?.per_turbine_kWh;
-        if (per != null) {
-            // Ensure we have a place to store turbine outputs
-            // We'll store by turbine id: rec.turbineOutputs_kWh = { id: kWh }
-            rec.turbineOutputs_kWh = rec.turbineOutputs_kWh ?? {};
+        rec.turbineOutputs_kWh = rec.turbineOutputs_kWh ?? {};
 
+        if (per != null) {
             if (Array.isArray(per)) {
-                // Assumption: array aligns with payload.turbines order
                 payload.turbines.forEach((t, idx) => {
                     const val = per[idx];
                     if (val != null) rec.turbineOutputs_kWh[t.id] = val;
                 });
             } else if (typeof per === "object") {
-                // Map keyed by turbine id
                 Object.entries(per).forEach(([id, val]) => {
                     if (val != null) rec.turbineOutputs_kWh[id] = val;
                 });
-            } else {
-                console.warn("per_turbine_kWh has unexpected type:", typeof per);
             }
+        }
 
-            // Optional convenience: also attach output onto each *mast* entity for easy label display
-            // (Assumes turbines are stored as [mast, blades, mast, blades, ...])
-            if (Array.isArray(rec.turbines) && rec.turbines.length >= 2) {
-                for (let i = 0; i < payload.turbines.length; i++) {
-                    const turbineId = payload.turbines[i].id;
-                    const kWh = rec.turbineOutputs_kWh[turbineId];
-                    const mastEntity = rec.turbines[i * 2]; // 0,2,4,... are masts
-
-                    if (mastEntity && kWh != null) {
-                        mastEntity.windOutput_kWh = kWh; // custom property
-                        const MWh = Math.round(kWh / 1000)
-                        const rounded_MWh = Math.round(MWh / 100) * 100
-                        mastEntity.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_MWh} MWh/year`;
-                    }
+        // --- attach outputs onto mast entities (optional convenience) ---
+        if (Array.isArray(rec.turbines) && rec.turbines.length >= 2 && payload?.turbines?.length) {
+            for (let i = 0; i < payload.turbines.length; i++) {
+                const turbineId = payload.turbines[i].id;
+                const kWh = rec.turbineOutputs_kWh[turbineId];
+                const mast = rec.turbines[i * 2]; // assumes [mast, blades, mast, blades,...]
+                if (mast && kWh != null) {
+                    mast.windOutput_kWh = kWh;
+                    mast.turbineId = mast.turbineId ?? turbineId; // ensure it exists
+                    const rounded_MWh = Math.round((kWh / 1000) / 100) * 100;
+                    mast.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_MWh} MWh/year`;
                 }
             }
         }
 
-        const mwhTotal = kwh / 1000;
-        const rounded_mwhTotal = Math.round(mwhTotal / 100)*100
-        setPolygonWindOutput(`${rounded_mwhTotal} MWh/year`);
-        if (mastEntity != null) {
+        // --- total polygon output ---
+        const roundedTotal_MWh = Math.round((total_kWh / 1000) / 100) * 100;
+        setPolygonWindOutput(`${roundedTotal_MWh} MWh/year`);
 
-            let single_output = mastEntity.windOutput_kWh / 1000;
-            single_output = Math.round(single_output / 100) * 100;
-            const output_text = `${single_output} MWh/year`;
+        // --- selected turbine output (works for polygon turbine AND single turbine) ---
+        if (selectedMast) {
+            const id = selectedMast.turbineId;
+            const sel_kWh = id ? rec.turbineOutputs_kWh?.[id] : selectedMast.windOutput_kWh;
 
-            setSelectedWindOutput(output_text);
+            if (sel_kWh != null) {
+                const roundedSel_MWh = Math.round((sel_kWh / 1000) / 100) * 100;
+                setSelectedWindOutput(`${roundedSel_MWh} MWh/year`);
+            } else {
+                setSelectedWindOutput("—");
+            }
+        } else {
+            setSelectedWindOutput("—");
         }
+
     } catch (e) {
         console.error(e);
-        setPolygonWindOutput(`ERROR`);
-        setSelectedWindOutput(`ERROR`);
+        setPolygonWindOutput("ERROR");
+        setSelectedWindOutput("ERROR");
     }
 }
+
 
 // Make API Call
 async function callComputeAnnualWind(payload) {
@@ -157,7 +157,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // 4) Call optimizer
     let result;
     try {
-        const res = await fetch(WIND_API_BASE+ "/optimize-annual", {
+        const res = await fetch(WIND_API_BASE + "/optimize-annual", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify(dto)
@@ -207,13 +207,31 @@ async function buildAnnualWindPayloadFromPolygonRef(ref) {
 
     const record = ref.record ?? ref;
 
-    // IMPORTANT: support your polygon record shape directly:
-    // record.positions is the ground Cartesian3[] for ALL turbines
-    const positionsArr = Array.isArray(record.positions)
-        ? record.positions
-        : Array.from(record.positions ?? []);
+    // Prefer LIVE mast positions (so drag/move immediately affects payload)
+    const now = Cesium.JulianDate.now();
+
+    let positionsArr = [];
+
+    // If we have actual entities, derive positions from masts
+    if (Array.isArray(record.turbines) && record.turbines.length > 0) {
+        for (const ent of record.turbines) {
+            const uri = ent?.model?.uri?.getValue?.(now) || "";
+            if (!uri.includes("mastandnacelle")) continue;
+
+            const p = ent.position?.getValue?.(now);
+            if (p) positionsArr.push(p);
+        }
+    }
+
+    // Fallback: stored positions (older path)
+    if (positionsArr.length === 0) {
+        positionsArr = Array.isArray(record.positions)
+            ? record.positions
+            : Array.from(record.positions ?? []);
+    }
 
     if (positionsArr.length === 0) throw new Error("No turbine positions in ref");
+
 
     const hubHeight =
         Number(record.hubHeight) ||
@@ -237,6 +255,8 @@ async function buildAnnualWindPayloadFromPolygonRef(ref) {
         .filter(Boolean);
 
     if (turbineDTOs.length === 0) throw new Error("Could not build turbine DTOs");
+
+    console.log("[payload turbines]", turbineDTOs.map(t => [t.id, t.lon.toFixed(5), t.lat.toFixed(5)]));
 
     return {
         output: "annual",

@@ -2,7 +2,12 @@ import "./style-wind.css";
 import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import {computeAndUpdateOutputWind, optimizePolygon} from "../wind_output/wind_api.js";
-import {getPolygonVerticesCartesian, removePolygonTurbines, generateCandidateLonLat, placeTurbinesAtLonLat} from "../wind_output/optimizer_helpers.js"
+import {
+    getPolygonVerticesCartesian,
+    removePolygonTurbines,
+    generateCandidateLonLat,
+    placeTurbinesAtLonLat
+} from "../wind_output/optimizer_helpers.js"
 import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
 import {showPolygonOutput, closePolygonOutput, setSelectedWindOutput} from "../wind_output/output_ui.js";
 import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
@@ -10,16 +15,17 @@ import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
 
 // FIONA'S CHANGES
 let canvasLoader = null;
+
 function getCanvasLoader() {
-  if (canvasLoader) return canvasLoader;
+    if (canvasLoader) return canvasLoader;
 
-  const canvas = document.getElementById("optimizerCanvas");
-  if (!canvas) {
-    throw new Error("optimizerCanvas not found in DOM (panel not rendered yet?)");
-  }
+    const canvas = document.getElementById("optimizerCanvas");
+    if (!canvas) {
+        throw new Error("optimizerCanvas not found in DOM (panel not rendered yet?)");
+    }
 
-  canvasLoader = createOptimizerCanvasLoader();
-  return canvasLoader;
+    canvasLoader = createOptimizerCanvasLoader();
+    return canvasLoader;
 }
 
 
@@ -438,7 +444,9 @@ async function main() {
         const newTurbines = await placeTurbinesInPolygon(
             activeShapePoints,
             H,
-            (pp) => { placedPositions = pp; }
+            (pp) => {
+                placedPositions = pp;
+            }
         );
 
         // store them so we never delete others, **and** remember N, H, and positions
@@ -447,7 +455,7 @@ async function main() {
             polygonVertices: positionsCopy,       // <-- keep the polygon geometry
             turbines: newTurbines,
             // store the actual turbine positions for API + later edits
-             positions: placedPositions ?? [],     // <-- turbine ground positions only
+            positions: placedPositions ?? [],     // <-- turbine ground positions only
             hubHeight: H
         });
 
@@ -457,8 +465,6 @@ async function main() {
         showPolygonOutput(polyRec)
         // compute AEP for the whole polygon turbine set
         await computeAndUpdateOutputWind(polyRec);
-
-
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -509,7 +515,7 @@ async function main() {
 
 
     // PLACE TURBINES INSIDE THE POLYGON
-    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */ ) {
+    async function placeTurbinesInPolygon(cartesians, hubHeight, onPlacedPositions_callback_function /* optional */) {
         const newEntities = [];
 
         // 1) Determine rotor radius based on hubHeight
@@ -579,7 +585,7 @@ async function main() {
                     hubPos,
                     new Cesium.HeadingPitchRoll(0, 0, 0)
                 ),
-                model: { uri: cfg.bladesAndHubUri, scale: 1, runAnimations: false }
+                model: {uri: cfg.bladesAndHubUri, scale: 1, runAnimations: false}
             });
             newEntities.push(blades);
             rotatingBlades.push(blades);
@@ -784,13 +790,11 @@ async function main() {
         const mastEnt = group[0];     // always mast, because you built group as [mast, blades]
 
 
-
         let single_output = mastEnt.windOutput_kWh / 1000;
-        single_output = Math.round(single_output/100) * 100;
+        single_output = Math.round(single_output / 100) * 100;
         const output_text = `${single_output} MWh/year`;
 
         setSelectedWindOutput(output_text);
-
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -908,7 +912,6 @@ async function main() {
     };
 
 
-
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // FUNCTION II: RIGHT CLICK TO SELECT POLYGON
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -988,7 +991,9 @@ async function main() {
         const replacements = await placeTurbinesInPolygon(
             verts,
             newH,
-            (pp)=>{ placedPositions = pp; }
+            (pp) => {
+                placedPositions = pp;
+            }
         );
 
         // 3) update the record
@@ -1002,7 +1007,7 @@ async function main() {
     });
 
 
-   // FIONA'S CHANGES
+    // FIONA'S CHANGES
 
     async function runOptimization() {
         const loaderEl = document.getElementById("optimizerLoader");
@@ -1013,17 +1018,16 @@ async function main() {
 
         let ref = null
 
-      try {
-        ref = await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
-      } finally {
-          loader.stop();
-          loaderEl.hidden = true;
-      }
-     await computeAndUpdateOutputWind(ref);
+        try {
+            ref = await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
+        } finally {
+            loader.stop();
+            loaderEl.hidden = true;
+        }
+        await computeAndUpdateOutputWind(ref);
     }
 
     document.getElementById("optimizePolygonBtn").addEventListener("click", runOptimization);
-
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1125,7 +1129,12 @@ async function main() {
         clearTimeout(clickTimeout);
 
         const picked = viewer.scene.pick(down.position);
-        if (!Cesium.defined(picked) || !picked.id) return;
+        if (!Cesium.defined(picked) || !picked.id || !picked.id.position) {
+            viewer.scene.screenSpaceCameraController.enableInputs = true;
+            isDragging = false;
+            return;
+        }
+
 
         const pos = picked.id.position.getValue(Cesium.JulianDate.now());
         const carto = Cesium.Cartographic.fromCartesian(pos);
@@ -1210,16 +1219,21 @@ async function main() {
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
     }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
 
-    document.addEventListener("mouseup", () => {
-        isMKeyDown = false;
-        viewer._container.style.cursor = '';
-        viewer.scene.screenSpaceCameraController.enableInputs = true;
-    });
+    // document.addEventListener("mouseup", () => {
+    //     isMKeyDown = false;
+    //     viewer._container.style.cursor = '';
+    //     viewer.scene.screenSpaceCameraController.enableInputs = true;
+    // });
 
 
-    // STOP DRAGGING
-    moveHandler.setInputAction(() => {
+    // STOP DRAGGING + RECOMPUTE
+    moveHandler.setInputAction(async () => {
+        // stop tracking mouse moves
         moveHandler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        // capture moved group BEFORE clearing
+        const movedGroup = selectedGroup;
+
         isDragging = false;
         selectedGroup = null;
         viewer.scene.screenSpaceCameraController.enableInputs = true;
@@ -1228,8 +1242,45 @@ async function main() {
             viewer.entities.remove(moveCircle);
             moveCircle = null;
         }
-        isMKeyDown = false;                 // <-- ADD THIS
-        viewer._container.style.cursor = ''; // <-- and this
+
+        isMKeyDown = false;
+        viewer._container.style.cursor = '';
+
+        // nothing was moved
+        if (!movedGroup || movedGroup.length === 0) return;
+
+        const now = Cesium.JulianDate.now();
+
+        // find mast in the moved group
+        const movedMast = movedGroup.find(ent => {
+            const uri = ent?.model?.uri?.getValue?.(now) || "";
+            return uri.includes("mastandnacelle");
+        });
+        if (!movedMast) return;
+
+        // find parent polygon record (your real storage)
+        const parentRec = polygonTurbineRecords.find(rec =>
+            Array.isArray(rec.turbines) && rec.turbines.includes(movedMast)
+        );
+
+        if (parentRec) {
+            // recompute polygon (wake coupling) + selected turbine output
+            await computeAndUpdateOutputWind(parentRec, movedMast);
+        } else {
+            // standalone turbine: make a tiny record for compute
+            const pos = movedMast.position.getValue(now);
+            const uri = movedMast.model?.uri?.getValue?.(now) || "";
+            const hubHeight = uri.includes("150") ? 150 : uri.includes("125") ? 125 : 100;
+
+            const singleRec = {
+                id: movedMast.id,
+                hubHeight,
+                turbines: movedGroup,
+                positions: pos ? [pos] : []
+            };
+
+            await computeAndUpdateOutputWind(singleRec, movedMast);
+        }
     }, Cesium.ScreenSpaceEventType.RIGHT_UP);
 
 
