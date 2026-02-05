@@ -36,8 +36,9 @@ export async function computeAndUpdatePVOutput(ref) {
 
 // Display calculated Output
 function setPVOutput(text) {
+    console.log("Entered setPVOutput")
     const el = document.getElementById("pvOutput");
-    if (el) el.textContent = `output: ${text}`;
+    if (el) el.textContent = `Annual Energy Output: ${text}`;
 }
 
 // harmonize UI and polygon spacing

@@ -3,6 +3,7 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../solar_output/PV_api.js";
 import {computeAndUpdatePVOutput, setSpacingUI} from "../solar_output/PV_api.js";
+import {closePolygonPVOutput, showPolygonPVOutput} from "../solar_output/solar_output_ui.js"
 
 console.log("main.js loaded");
 
@@ -667,6 +668,7 @@ async function main() {
         // FIONA'S CHANGES
         showPolygonOptions(selectedPolygonRef);
         setSpacingUI(selectedPolygonRef.spacing);
+        showPolygonPVOutput(selectedPolygonRef);
         await computeAndUpdatePVOutput(selectedPolygonRef);
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -1753,6 +1755,8 @@ async function main() {
         selectedPolygonRef = null;
         // hide UI
         document.getElementById('polygonOptions').style.display = 'none';
+        // FIONA'S CHANGES
+        closePolygonPVOutput()
     };
 
 
@@ -1873,6 +1877,7 @@ async function main() {
         // FIONA'S CHANGES
         showPolygonOptions(ref);
         setSpacingUI(ref.spacing);
+        showPolygonPVOutput(ref);
         await computeAndUpdatePVOutput(ref);
 
     }

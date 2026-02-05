@@ -7,7 +7,7 @@ import {
 } from "./optimizer_helpers.js";
 import {setPolygonWindOutput, setSelectedWindOutput} from "./output_ui.js";
 
-const WIND_API_BASE = "http://localhost:8000";
+const WIND_API_BASE = "http://localhost:8080";
 
 // SET OUTPUT
 export async function computeAndUpdateOutputWind(ref) {
