@@ -111,9 +111,14 @@
     </select>
 
     <hr>
-    <div id="singleturbine_windOutput" style="font-family:sans-serif; font-size:13px; color:#333;">
-        output: —
+    <div id="singleturbine_windOutput_annual" style="font-family:sans-serif; font-size:13px; color:#333;">
+        Annual Energy Output: —
     </div>
+    <div id="singleturbine_windOutput_winter" style="font-family:sans-serif; font-size:13px; color:#333;">
+    </div>
+    <div id="singleturbine_windOutput_summer" style="font-family:sans-serif; font-size:13px; color:#333;">
+    </div>
+
 
     <button id="deleteTurbineBtn">delete turbine</button>
 </div>
@@ -148,8 +153,14 @@
 <!--POLYGON ENERGY OUTPUT PANEL-->
 <div id="polygonoutputPanel">
     <!--z-index==layer-->
-    <div id="polygonturbine_windOutput"
+    <div id="polygonturbine_annual_windOutput"
     >Annual Energy Output: —
+    </div>
+    <div id="polygonturbine_winter_windOutput"
+    >Winter Energy Output: —
+    </div>
+    <div id="polygonturbine_summer_windOutput"
+    >Summer Energy Output: —
     </div>
     <div id="optimizerLoader" hidden>
         <canvas id="optimizerCanvas" width="260" height="120"></canvas>

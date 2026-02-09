@@ -1,20 +1,25 @@
 import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
+import {setPVOutput_Annual, setPVOutput_Winter, setPVOutput_Summer} from "./solar_output_ui.js";
 
 const PV_API_BASE = "http://localhost:8000";
 
 // SET OUTPUT
 export async function computeAndUpdatePVOutput(ref) {
     if (!ref) {
-        setPVOutput("—");
+        setPVOutput_Annual("—");
+        setPVOutput_Winter("—");
+        setPVOutput_Summer("—");
         return;
     }
 
     try {
-        setPVOutput("computing…");
+        setPVOutput_Annual("computing…");
 
         if (ref.no_one_or_multiple_rows == 0) {
-            setPVOutput("–");
+            setPVOutput_Annual("—");
+            setPVOutput_Winter("—");
+            setPVOutput_Summer("—");
             return;
         }
 
@@ -22,24 +27,36 @@ export async function computeAndUpdatePVOutput(ref) {
 
         const result = await callComputeAnnualPV(payload);
 
-        const kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
-        if (kwh == null) {
-            setPVOutput("API ok, missing annual_kWh");
+        const annual_kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
+        const winter_kwh = result?.winter_kWh ?? result?.annual_kWh;
+        if (annual_kwh == null) {
+            setPVOutput_Annual("API ok, missing annual_kWh");
             return;
         }
-        setPVOutput(`${Math.round(kwh)} kWh/year`);
+
+        let rounded_annual = Math.round(annual_kwh / 100) * 100;
+        let rounded_winter = Math.round(winter_kwh / 100) * 100;
+        let rounded_summer = rounded_annual - rounded_winter;
+
+        let unit_string = "kWh";
+
+        if (rounded_annual >= 1000) {
+            rounded_annual = Math.round(rounded_annual / 1000);
+            rounded_winter = Math.round(rounded_winter / 1000);
+            rounded_summer = rounded_annual - rounded_winter
+            unit_string = "MWh"
+        }
+
+        setPVOutput_Annual(`${rounded_annual} ${unit_string}/year`);
+        setPVOutput_Winter(`${rounded_winter} ${unit_string}/year`);
+        setPVOutput_Summer(`${rounded_summer} ${unit_string}/year`)
     } catch (e) {
         console.error(e);
-        setPVOutput(`error`);
+        setPVOutput_Annual(`ERROR`);
     }
 }
 
-// Display calculated Output
-function setPVOutput(text) {
-    console.log("Entered setPVOutput")
-    const el = document.getElementById("pvOutput");
-    if (el) el.textContent = `Annual Energy Output: ${text}`;
-}
+
 
 // harmonize UI and polygon spacing
 export function setSpacingUI(spacing) {
@@ -49,7 +66,7 @@ export function setSpacingUI(spacing) {
 
 // Make API Call
 async function callComputeAnnualPV(payload) {
-    const res = await fetch(`${PV_API_BASE}/compute-annual`, {
+    const res = await fetch(`${PV_API_BASE}/compute-PV`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload),
@@ -91,7 +108,6 @@ async function buildAnnualPayloadFromPVPolygonRef(ref) {
         .filter(Boolean);
 
     return {
-        output: "annual",
         gcr: gcr,
         no_one_or_multiple_rows: Math.max(rows, 1),
         panels: panelDTOs

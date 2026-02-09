@@ -3,13 +3,10 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import {computeAndUpdateOutputWind, optimizePolygon} from "../wind_output/wind_api.js";
 import {
-    getPolygonVerticesCartesian,
-    removePolygonTurbines,
-    generateCandidateLonLat,
-    placeTurbinesAtLonLat
+    getPolygonVerticesCartesian
 } from "../wind_output/optimizer_helpers.js"
 import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
-import {showPolygonOutput, closePolygonOutput, setSelectedWindOutput} from "../wind_output/output_ui.js";
+import {showPolygonOutput, closePolygonOutput, setSelectedWindOutput_Annual, setSelectedWindOutput_Winter, setSelectedWindOutput_Summer} from "../wind_output/output_ui.js";
 import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
 
 
@@ -789,12 +786,22 @@ async function main() {
 
         const mastEnt = group[0];     // always mast, because you built group as [mast, blades]
 
+        // annual
+        let annual_turbine_output = mastEnt.windAnnualOutput_kWh / 1000;
+        annual_turbine_output = Math.round(annual_turbine_output / 100) * 100;
+        setSelectedWindOutput_Annual(`${annual_turbine_output} MWh/year`);
 
-        let single_output = mastEnt.windOutput_kWh / 1000;
-        single_output = Math.round(single_output / 100) * 100;
-        const output_text = `${single_output} MWh/year`;
+        // winter
+        let winter_turbine_output = mastEnt.windWinterOutput_kWh / 1000;
+        winter_turbine_output = Math.round(winter_turbine_output / 100) * 100;
+        setSelectedWindOutput_Winter(`${winter_turbine_output} MWh/year`);
 
-        setSelectedWindOutput(output_text);
+        // summer
+        let summer_turbine_output = mastEnt.windSummerOutput_kWh / 1000;
+        summer_turbine_output = Math.round(summer_turbine_output / 100) * 100;
+        setSelectedWindOutput_Summer(`${summer_turbine_output} MWh/year`);
+
+
 
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);

@@ -5,7 +5,7 @@ const turbine_size = 6;
 
 export function showPolygonOutput(ref) {
         // FIONA'S CHANGES
-        const polygonOutput = document.getElementById("polygonturbine_windOutput");
+        const polygonOutput = document.getElementById("polygonturbine_annual_windOutput");
 
         const panel = document.getElementById("polygonoutputPanel");
         if (panel) panel.style.display = "block";
@@ -18,15 +18,38 @@ export function closePolygonOutput() {
 }
 
 // Display calculated Output
-export function setPolygonWindOutput(text_polygon) {
-    const el_polyongturbine = document.getElementById("polygonturbine_windOutput");
+export function setPolygonWindOutput_Annual(text_polygon) {
+    const el_polyongturbine = document.getElementById("polygonturbine_annual_windOutput");
     if (el_polyongturbine) el_polyongturbine.textContent = `Annual Energy Output: ${text_polygon}`;
 }
 
-export function setSelectedWindOutput(text_single) {
-    const el_singleturbine = document.getElementById("singleturbine_windOutput");
+export function setSelectedWindOutput_Annual(text_single) {
+    const el_singleturbine = document.getElementById("singleturbine_windOutput_annual");
     if (el_singleturbine) el_singleturbine.textContent = `Annual Energy Output: ${text_single}`
 }
+
+
+export function setPolygonWindOutput_Winter(text_polygon) {
+    const el_polyongturbine = document.getElementById("polygonturbine_winter_windOutput");
+    if (el_polyongturbine) el_polyongturbine.textContent = `Winter Energy Output: ${text_polygon}`;
+}
+
+export function setPolygonWindOutput_Summer(text_single) {
+    const el_polyongturbine = document.getElementById("polygonturbine_summer_windOutput");
+    if (el_polyongturbine) el_polyongturbine.textContent = `Summer Energy Output: ${text_single}`
+}
+
+
+export function setSelectedWindOutput_Winter(text_single) {
+    const el_singleturbine = document.getElementById("singleturbine_windOutput_winter");
+    if (el_singleturbine) el_singleturbine.textContent = `Winter Energy Output: ${text_single}`
+}
+
+export function setSelectedWindOutput_Summer(text_single) {
+    const el_singleturbine = document.getElementById("singleturbine_windOutput_summer");
+    if (el_singleturbine) el_singleturbine.textContent = `Summer Energy Output: ${text_single}`
+}
+
 
 export function createOptimizerCanvasLoader({
       canvasId = "optimizerCanvas",
