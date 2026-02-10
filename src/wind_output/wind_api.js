@@ -218,12 +218,13 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // (Right now you used rotorRadius=250/350/450, so diameter=500/700/900)
     const rotorDiameter_m = (hubHeight === 150) ? 900 : (hubHeight === 125) ? 700 : 500;
 
-    // Minimum spacing in rotor diameters (D) — replace with UI value later if you add one
+    // Minimum spacing in rotor diameters (D)
     const min_spacing_D = 1.0;
 
     // Candidate density:
     // - interior spacing smaller than min spacing (so optimizer can choose 0.5D shifts etc.)
     // - boundary sampled more densely
+    // all will be > 100m, which is resolution of the map
     const interiorSpacing_m = rotorDiameter_m * (min_spacing_D * 0.5);
     const boundaryStep_m = rotorDiameter_m * 0.25;
 

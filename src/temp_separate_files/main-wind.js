@@ -1226,12 +1226,6 @@ async function main() {
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
     }, Cesium.ScreenSpaceEventType.RIGHT_DOWN);
 
-    // document.addEventListener("mouseup", () => {
-    //     isMKeyDown = false;
-    //     viewer._container.style.cursor = '';
-    //     viewer.scene.screenSpaceCameraController.enableInputs = true;
-    // });
-
 
     // STOP DRAGGING + RECOMPUTE
     moveHandler.setInputAction(async () => {
