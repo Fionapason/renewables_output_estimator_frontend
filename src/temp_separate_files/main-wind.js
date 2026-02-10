@@ -436,30 +436,25 @@ async function main() {
         const positionsCopy = activeShapePoints.slice(); // copy the final vertices
 
         // FIONA'S CHANGES
-        let placedPositions = null;
-
-        const newTurbines = await placeTurbinesInPolygon(
-            activeShapePoints,
-            H,
-            (pp) => {
-                placedPositions = pp;
-            }
-        );
-
-        // store them so we never delete others, **and** remember N, H, and positions
         polygonTurbineRecords.push({
             polygon: polygonEntity,
-            polygonVertices: positionsCopy,       // <-- keep the polygon geometry
-            turbines: newTurbines,
-            // store the actual turbine positions for API + later edits
-            positions: placedPositions ?? [],     // <-- turbine ground positions only
+            polygonVertices: positionsCopy,
+            turbines: [],
+            positions: [],
             hubHeight: H
         });
 
         const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
 
-        showPolygonOptions(polyRec)
-        showPolygonOutput(polyRec)
+        // important: ensure output panel exists before loader tries to grab optimizerCanvas
+        showPolygonOptions(polyRec);
+        showPolygonOutput(polyRec);
+
+        // optional but useful for downstream UI logic
+        selectedPolygonRef = polyRec;
+
+        await runOptimization(polyRec);
+
         // compute AEP for the whole polygon turbine set
         await computeAndUpdateOutputWind(polyRec);
 
@@ -1015,26 +1010,26 @@ async function main() {
 
 
     // FIONA'S CHANGES
+    async function runOptimization(ref) {
+        if (!ref) throw new Error("runOptimization(ref): ref is required");
 
-    async function runOptimization() {
         const loaderEl = document.getElementById("optimizerLoader");
         loaderEl.hidden = false;
-
-        const loader = getCanvasLoader();  // <-- ensures not null
+        const loader = getCanvasLoader();
         loader.start();
 
-        let ref = null
-
+        let optimizedRef = ref;
         try {
-            ref = await optimizePolygon(selectedPolygonRef, viewer, rotatingBlades);
+            optimizedRef = await optimizePolygon(ref, viewer, rotatingBlades);
         } finally {
             loader.stop();
             loaderEl.hidden = true;
         }
-        await computeAndUpdateOutputWind(ref);
+
+        await computeAndUpdateOutputWind(optimizedRef);
+        return optimizedRef;
     }
 
-    document.getElementById("optimizePolygonBtn").addEventListener("click", runOptimization);
 
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

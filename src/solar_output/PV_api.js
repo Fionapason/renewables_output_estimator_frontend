@@ -14,7 +14,9 @@ export async function computeAndUpdatePVOutput(ref) {
     }
 
     try {
-        setPVOutput_Annual("computing…");
+        setPVOutput_Annual("Computing…");
+        setPVOutput_Winter("");
+        setPVOutput_Summer("");
 
         if (ref.no_one_or_multiple_rows == 0) {
             setPVOutput_Annual("—");

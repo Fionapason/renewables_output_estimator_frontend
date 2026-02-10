@@ -14,14 +14,6 @@ const WIND_API_BASE = "http://localhost:8080";
 
 // SET OUTPUT
 export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
-    if (!ref) {
-        setPolygonWindOutput_Annual("—");
-        setSelectedWindOutput_Annual("—");
-
-        setPolygonWindOutput_Winter("")
-        setPolygonWindOutput_Summer("")
-        return;
-    }
 
     try {
         setPolygonWindOutput_Annual("Computing…");
@@ -29,6 +21,7 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
 
         setPolygonWindOutput_Winter("—")
         setPolygonWindOutput_Summer("—")
+
         setSelectedWindOutput_Winter("—")
         setSelectedWindOutput_Summer("—")
 
@@ -208,6 +201,12 @@ async function callComputeWind(payload) {
 
 export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades) {
     if (!selectedPolygonRef) return;
+
+    setPolygonWindOutput_Annual("Computing…");
+    setSelectedWindOutput_Annual("Computing…");
+
+    setPolygonWindOutput_Winter("—")
+    setPolygonWindOutput_Summer("—")
 
     const ref = selectedPolygonRef;
 

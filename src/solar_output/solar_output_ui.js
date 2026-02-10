@@ -17,10 +17,10 @@ export function setPVOutput_Annual(text) {
 
 export function setPVOutput_Winter(text) {
     const el = document.getElementById("pvOutput_Winter");
-    if (el) el.textContent = `Annual Energy Output: ${text}`;
+    if (el) el.textContent = `Winter Energy Output: ${text}`;
 }
 
 export function setPVOutput_Summer(text) {
     const el = document.getElementById("pvOutput_Summer");
-    if (el) el.textContent = `Annual Energy Output: ${text}`;
+    if (el) el.textContent = `Summer Energy Output: ${text}`;
 }
