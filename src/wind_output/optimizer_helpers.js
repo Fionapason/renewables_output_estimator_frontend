@@ -74,7 +74,6 @@ function densifyPolygonBoundaryLonLat(polyLonLat, stepMeters) {
 }
 
 // candidate generator: interior grid + denser boundary points
-// TODO don't generate more points than the definition of the data!!!
 export function generateCandidateLonLat(cartesians, spacingMeters, boundaryStepMeters) {
     const interior = generateHexagonalTurbinePositions(cartesians, spacingMeters); // returns [lon,lat]
 
