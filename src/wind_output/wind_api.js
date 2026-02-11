@@ -125,7 +125,7 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
                     // force consistency
                     const rounded_summer_MWh = rounded_annual_MWh - rounded_winter_MWh;
 
-                    mast.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_annual_MWh} MWh/year<br/>Winter Energy Output: ${rounded_winter_MWh} MWh<br/>Summer Energy Output: ${rounded_summer_MWh}$`;
+                    mast.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_annual_MWh} MWh/year<br/>Winter Energy Output: ${rounded_winter_MWh} MWh<br/>Summer Energy Output: ${rounded_summer_MWh} MWh`;
                 }
             }
         }
@@ -224,8 +224,8 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // - interior spacing smaller than min spacing (so optimizer can choose 0.5D shifts etc.)
     // - boundary sampled more densely
     // all will be > 100m, which is resolution of the map
-    const interiorSpacing_m = rotorDiameter_m * (min_spacing_D * 0.5);
-    const boundaryStep_m = rotorDiameter_m * 0.25;
+    const interiorSpacing_m = rotorDiameter_m * (min_spacing_D); // * 0.5
+    const boundaryStep_m = rotorDiameter_m * 0.5; // * 0.25
 
     const verts = getPolygonVerticesCartesian(ref);
     if (!verts || verts.length < 3) return;
