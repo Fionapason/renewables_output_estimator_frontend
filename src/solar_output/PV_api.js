@@ -1,6 +1,7 @@
 import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
-import {setPVOutput_Annual, setPVOutput_Winter, setPVOutput_Summer} from "./solar_output_ui.js";
+import {setPVOutput_Annual, setPVOutput_Winter, setPVOutput_Summer, setPolygonPVTradeoff} from "./solar_output_ui.js";
+import {setPolygonWindTradeoff} from "../wind_output/output_ui.js";
 
 const PV_API_BASE = "http://localhost:8000";
 
@@ -31,6 +32,8 @@ export async function computeAndUpdatePVOutput(ref) {
 
         const annual_kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
         const winter_kwh = result?.winter_kWh ?? result?.annual_kWh;
+        const summer_kwh = annual_kwh - winter_kwh;
+
         if (annual_kwh == null) {
             setPVOutput_Annual("API ok, missing annual_kWh");
             return;
@@ -39,6 +42,8 @@ export async function computeAndUpdatePVOutput(ref) {
         let rounded_annual = Math.round(annual_kwh / 100) * 100;
         let rounded_winter = Math.round(winter_kwh / 100) * 100;
         let rounded_summer = rounded_annual - rounded_winter;
+
+        console.log(`Summer Value: ${rounded_summer}.`)
 
         let unit_string = "kWh";
 
@@ -51,10 +56,30 @@ export async function computeAndUpdatePVOutput(ref) {
 
         setPVOutput_Annual(`${rounded_annual} ${unit_string}/year`);
         setPVOutput_Winter(`${rounded_winter} ${unit_string}/year`);
-        setPVOutput_Summer(`${rounded_summer} ${unit_string}/year`)
+        setPVOutput_Summer(`${rounded_summer} ${unit_string}/year`);
+
+
+        if (ref.annual_first != null) {
+
+            const annual_change_percent = Math.round((annual_kwh / ref.annual_first - 1) * 100);
+            const winter_change_percent = Math.round((winter_kwh / ref.winter_first - 1) * 100);
+            const summer_change_percent = Math.round((summer_kwh / ref.summer_first - 1) * 100);
+
+            setPolygonPVTradeoff(annual_change_percent, winter_change_percent, summer_change_percent);
+
+        } else {
+
+            ref.annual_first = annual_kwh;
+            ref.winter_first = winter_kwh;
+            ref.summer_first = summer_kwh;
+
+        }
+
     } catch (e) {
         console.error(e);
         setPVOutput_Annual(`ERROR`);
+        setPVOutput_Winter("");
+        setPVOutput_Summer("");
     }
 }
 

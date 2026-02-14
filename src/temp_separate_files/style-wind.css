@@ -203,3 +203,14 @@ html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0;
   font-family: sans-serif;
   font-size: 13px;
 }
+
+#polygonoutputPanel .delta{
+  margin-left: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+#polygonoutputPanel .delta.pos { color: #1a7f37; } /* green */
+#polygonoutputPanel .delta.neg { color: #d1242f; } /* red */
+#polygonoutputPanel .delta.zero { color: #6e7781; } /* grey */

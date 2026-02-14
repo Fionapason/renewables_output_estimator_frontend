@@ -153,20 +153,28 @@
 <!--POLYGON ENERGY OUTPUT PANEL-->
 <div id="polygonoutputPanel">
     <!--z-index==layer-->
-    <div id="polygonturbine_annual_windOutput"
-    >Annual Energy Output: —
+    <div id="polygonturbine_annual">
+        <span class="value" id="polygonturbine_annual_windOutput">
+            Annual Energy Output: —
+        </span>
+        <span class="delta" id="annual_wind_delta" hidden></span>
+  </div>
+    <div id="polygonturbine_winter">
+        <span class="value" id="polygonturbine_winter_windOutput">
+            Winter Energy Output: —
+        </span>
+        <span class="delta" id="winter_wind_delta" hidden></span>
     </div>
-    <div id="polygonturbine_winter_windOutput"
-    >Winter Energy Output: —
-    </div>
-    <div id="polygonturbine_summer_windOutput"
-    >Summer Energy Output: —
+    <div id="polygonturbine_summer">
+        <span class="value" id="polygonturbine_summer_windOutput">
+            Summer Energy Output: —
+        </span>
+        <span class="delta" id="summer_wind_delta" hidden></span>
     </div>
     <div id="optimizerLoader" hidden>
         <canvas id="optimizerCanvas" width="260" height="120"></canvas>
         <div class="loaderLabel">Optimizing turbine layout within polygon…</div>
     </div>
-    <!-- <button id="optimizePolygonBtn">OPTIMIZE LAYOUT</button> -->
 </div>
 
 

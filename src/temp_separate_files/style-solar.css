@@ -274,3 +274,14 @@ html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0;
   font-weight: bold;
   color:#333;
 }
+
+#polygonoutputPVPanel .delta{
+  margin-left: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+#polygonoutputPVPanel .delta.pos { color: #1a7f37; } /* green */
+#polygonoutputPVPanel .delta.neg { color: #d1242f; } /* red */
+#polygonoutputPVPanel .delta.zero { color: #6e7781; } /* grey */

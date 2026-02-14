@@ -7,7 +7,7 @@ import {
 } from "./optimizer_helpers.js";
 import {
     setPolygonWindOutput_Annual, setPolygonWindOutput_Winter, setPolygonWindOutput_Summer, setSelectedWindOutput_Annual,
-    setSelectedWindOutput_Winter, setSelectedWindOutput_Summer
+    setSelectedWindOutput_Winter, setSelectedWindOutput_Summer, setPolygonWindTradeoff, removePolygonWindTradeoff
 } from "./output_ui.js";
 
 const WIND_API_BASE = "http://localhost:8080";
@@ -16,14 +16,15 @@ const WIND_API_BASE = "http://localhost:8080";
 export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
 
     try {
+        removePolygonWindTradeoff();
         setPolygonWindOutput_Annual("Computing…");
         setSelectedWindOutput_Annual("Computing…");
 
-        setPolygonWindOutput_Winter("—")
-        setPolygonWindOutput_Summer("—")
+        setPolygonWindOutput_Winter("—");
+        setPolygonWindOutput_Summer("—");
 
-        setSelectedWindOutput_Winter("—")
-        setSelectedWindOutput_Summer("—")
+        setSelectedWindOutput_Winter("—");
+        setSelectedWindOutput_Summer("—");
 
         const payload = await buildAnnualWindPayloadFromPolygonRef(ref);
         const result = await callComputeWind(payload);
@@ -180,10 +181,22 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
             setSelectedWindOutput_Summer("—");
         }
 
+        if (ref.annual_first != null) {
+            const annual_change_percent = Math.round((total_kWh / ref.annual_first - 1) * 100);
+            const winter_change_percent = Math.round((winter_kWh / ref.winter_first - 1) * 100);
+            const summer_change_percent = Math.round((summer_kWh / ref.summer_first - 1) * 100);
+            setPolygonWindTradeoff(annual_change_percent, winter_change_percent, summer_change_percent)
+        }
+
     } catch (e) {
         console.error(e);
         setPolygonWindOutput_Annual("ERROR");
         setSelectedWindOutput_Annual("ERROR");
+
+        setSelectedWindOutput_Annual("—");
+        setSelectedWindOutput_Winter("—");
+        setPolygonWindOutput_Winter("—");
+        setPolygonWindOutput_Summer("—");
     }
 }
 
@@ -306,6 +319,10 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     const total_annual_kWh = result?.annual_kWh ?? 0;
     const total_winter_kWh = result?.winter_kWh ?? 0;
     const total_summer_kWh = result?.summer_kWh ?? 0;
+
+    ref.annual_best = total_annual_kWh;
+    ref.winter_best = total_winter_kWh;
+    ref.summer_best = total_summer_kWh;
 
     // --- total polygon output ---
     const roundedTotal_MWh = Math.round((total_annual_kWh / 1000) / 100) * 100;

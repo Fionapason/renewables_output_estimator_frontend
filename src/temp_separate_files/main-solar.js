@@ -1642,26 +1642,26 @@ async function main() {
 // FUNCTION IV: LEFT PANEL TO CHOOSE THE PROPERTIES OF THE POLYGON
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-// For new polygons, always 'south'
+    // For new polygons, always 'south'
     let currentOrientation = 'south';
 
-// Only the "south" button exists
+    // Only the "south" button exists
     const leftSouthBtn = document.getElementById('southBtn');
 
-// Right-hand polygon options
+    // Right-hand polygon options
     const spacingInput = document.getElementById('polygonPanelSpacing');
     const gcrInput = document.getElementById('polygonGCR');
 
-// Mark it active by default
+    // Mark it active by default
     leftSouthBtn.classList.add('active');
 
-// Clicking the button doesn't change anything now (optional)
+    // Clicking the button doesn't change anything now (optional)
     leftSouthBtn.addEventListener('click', () => {
         currentOrientation = 'south';
         leftSouthBtn.classList.add('active');
     });
 
-// Right-hand polygon orientation buttons (unchanged)
+    // Right-hand polygon orientation buttons (unchanged)
     const rightSouthBtn = document.getElementById('orientSouthBtn');
     const rightDownslopeBtn = document.getElementById('orientDownslopeBtn');
 
@@ -1756,7 +1756,7 @@ async function main() {
         // hide UI
         document.getElementById('polygonOptions').style.display = 'none';
         // FIONA'S CHANGES
-        closePolygonPVOutput()
+        closePolygonPVOutput();
     };
 
 
