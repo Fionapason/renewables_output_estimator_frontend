@@ -199,7 +199,7 @@ async function callComputeWind(payload) {
     return await res.json(); // expects { annual_kWh: number }
 }
 
-export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades) {
+export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades, selectedMast = null) {
     if (!selectedPolygonRef) return;
 
     setPolygonWindOutput_Annual("Computing…");
@@ -250,7 +250,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // 3) Build DTO
     const dto = {
         hub_height_m: hubHeight,
-        rotor_diameter_m: rotorDiameter_m,
+        minimum_distance_diameter: rotorDiameter_m,
         min_spacing_D: min_spacing_D,
         candidates
     };
@@ -288,13 +288,159 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // store turbine ground positions (for compute-annual payload)
     // NOTE: we can reuse terrain heights we already sampled if you want,
     // but simplest is: derive ground positions from the mast entities
+
+    const rec = ref.record ?? ref;
+
+    // keep expected structure: [mast, blades, mast, blades,...]
+    rec.turbines = newEntities;
+    ref.turbines = newEntities;
+
+    // positions should be derived from masts only (but don't overwrite turbines array)
     const now = Cesium.JulianDate.now();
-    ref.positions = [];
-    for (let i = 0; i < newEntities.length; i += 2) { // mast indices 0,2,4,...
-        const mast = newEntities[i];
-        const p = mast.position?.getValue(now);
-        if (p) ref.positions.push(p);
-    }
+    const masts = newEntities.filter(e => {
+      const uri = e?.model?.uri?.getValue?.(now) ?? "";
+      return uri.includes("mastandnacelle");
+    });
+    ref.positions = masts.map(m => m.position?.getValue(now)).filter(Boolean);
+
+    const total_annual_kWh = result?.annual_kWh ?? 0;
+    const total_winter_kWh = result?.winter_kWh ?? 0;
+    const total_summer_kWh = result?.summer_kWh ?? 0;
+
+    // --- total polygon output ---
+    const roundedTotal_MWh = Math.round((total_annual_kWh / 1000) / 100) * 100;
+    setPolygonWindOutput_Annual(`${roundedTotal_MWh} MWh/year`);
+
+    const roundedWinter_MWh = Math.round((total_winter_kWh / 1000) / 100) * 100;
+    setPolygonWindOutput_Winter(`${roundedWinter_MWh} MWh`);
+
+    const roundedSummer_Mwh = Math.round( (total_summer_kWh / 1000) / 100 ) * 100;
+    setPolygonWindOutput_Summer(`${roundedSummer_Mwh} MWh`);
+
+
+
+    // --- store per turbine outputs ---
+        const annual_per_turbine = result?.per_turbine_annual;
+        rec.turbineOutputs_kWh_annual = rec.turbineOutputs_kWh_annual ?? {};
+
+        const winter_per_turbine = result?.per_turbine_winter;
+        const summer_per_turbine = result?.per_turbine_summer;
+
+        rec.turbineOutputs_kWh_winter = rec.turbineOutputs_kWh_winter ?? {};
+        rec.turbineOutputs_kWh_summer = rec.turbineOutputs_kWh_summer ?? {};
+
+
+        if (annual_per_turbine != null) {
+            if (Array.isArray(annual_per_turbine)) {
+                result.turbines.forEach((t, idx) => {
+                    const val = annual_per_turbine[idx];
+                    if (val != null) rec.turbineOutputs_kWh_annual[t.id] = val;
+                });
+            } else if (typeof annual_per_turbine === "object") {
+                Object.entries(annual_per_turbine).forEach(([id, val]) => {
+                    if (val != null) rec.turbineOutputs_kWh_annual[id] = val;
+                });
+            }
+        }
+
+        if (winter_per_turbine != null) {
+            if (Array.isArray(winter_per_turbine)) {
+                result.turbines.forEach((t, idx) => {
+                    const val = winter_per_turbine[idx];
+                    if (val != null) rec.turbineOutputs_kWh_winter[t.id] = val;
+                });
+            } else if (typeof winter_per_turbine === "object") {
+                Object.entries(winter_per_turbine).forEach(([id, val]) => {
+                    if (val != null) rec.turbineOutputs_kWh_winter[id] = val;
+                });
+            }
+        }
+
+        if (summer_per_turbine != null) {
+            if (Array.isArray(summer_per_turbine)) {
+                result.turbines.forEach((t, idx) => {
+                    const val = summer_per_turbine[idx];
+                    if (val != null) rec.turbineOutputs_kWh_summer[t.id] = val;
+                });
+            } else if (typeof summer_per_turbine === "object") {
+                Object.entries(summer_per_turbine).forEach(([id, val]) => {
+                    if (val != null) rec.turbineOutputs_kWh_summer[id] = val;
+                });
+            }
+        }
+
+        // --- attach outputs onto mast entities (optional convenience) ---
+        if (Array.isArray(rec.turbines) && rec.turbines.length >= 2 && result?.turbines?.length) {
+            for (let i = 0; i < result.turbines.length; i++) {
+                const turbineId = result.turbines[i].id;
+
+                const annual_kWh = rec.turbineOutputs_kWh_annual[turbineId];
+                const winter_kWh = rec.turbineOutputs_kWh_winter[turbineId];
+                const summer_kWh = rec.turbineOutputs_kWh_summer[turbineId];
+
+                const mast = rec.turbines[i * 2];   // now rec.turbines is masts only
+                // assumes [mast, blades, mast, blades,...]
+                if (mast && annual_kWh != null && winter_kWh != null && summer_kWh != null) {
+                    mast.windAnnualOutput_kWh = annual_kWh;
+                    mast.windWinterOutput_kWh = winter_kWh;
+                    mast.windSummerOutput_kWh = summer_kWh;
+                    mast.turbineId = mast.turbineId ?? turbineId; // ensure it exists
+
+                    const annual_MWh = annual_kWh / 1000;
+                    const winter_MWh = winter_kWh / 1000;
+
+                    // round annual first
+                    const rounded_annual_MWh = Math.round(annual_MWh / 100) * 100;
+
+                    // round winter
+                    const rounded_winter_MWh = Math.round(winter_MWh / 100) * 100;
+
+                    // force consistency
+                    const rounded_summer_MWh = rounded_annual_MWh - rounded_winter_MWh;
+
+                    mast.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_annual_MWh} MWh/year<br/>Winter Energy Output: ${rounded_winter_MWh} MWh<br/>Summer Energy Output: ${rounded_summer_MWh} MWh`;
+                }
+            }
+        }
+        // --- selected turbine output (works for polygon turbine AND single turbine) ---
+        if (selectedMast) {
+            const id = selectedMast.turbineId;
+            const selected_annual_kWh = id ? rec.turbineOutputs_kWh_annual?.[id] : selectedMast.windAnnualOutput_kWh;
+            const selected_winter_kWh = id ? rec.turbineOutputs_kWh_winter?.[id] : selectedMast.windWinterOutput_kWh;
+            const selected_summer_kWh = id ? rec.turbineOutputs_kWh_summer?.[id] : selectedMast.windSummerOutput_kWh;
+
+            console.log("Selected turbine debug:", {
+                turbineId: selectedMast?.turbineId,
+                annualKeys: rec?.turbineOutputs_kWh_annual
+                    ? Object.keys(rec.turbineOutputs_kWh_annual)
+                    : null,
+                winterKeys: rec?.turbineOutputs_kWh_winter
+                    ? Object.keys(rec.turbineOutputs_kWh_winter)
+                    : null,
+                summerKeys: rec?.turbineOutputs_kWh_summer
+                    ? Object.keys(rec.turbineOutputs_kWh_summer)
+                    : null,
+            });
+
+
+            if (selected_annual_kWh != null && selected_winter_kWh != null && selected_summer_kWh != null) {
+                const roundedSel_MWh_annual = Math.round((selected_annual_kWh / 1000) / 100) * 100;
+                const roundedSel_MWh_winter = Math.round((selected_winter_kWh / 1000) / 100) * 100;
+                const roundedSel_MWh_summer = Math.round((selected_summer_kWh / 1000) / 100) * 100;
+
+                setSelectedWindOutput_Annual(`${roundedSel_MWh_annual} MWh/year`);
+                setSelectedWindOutput_Winter(`${roundedSel_MWh_winter} MWh/year`);
+                setSelectedWindOutput_Summer(`${roundedSel_MWh_summer} MWh/year`);
+            } else {
+                setSelectedWindOutput_Annual("—");
+                setSelectedWindOutput_Winter("—");
+                setSelectedWindOutput_Summer("—");
+            }
+        } else {
+            setSelectedWindOutput_Annual("—");
+            setSelectedWindOutput_Winter("—");
+            setSelectedWindOutput_Summer("—");
+        }
 
     return ref
 }
@@ -331,7 +477,11 @@ async function buildAnnualWindPayloadFromPolygonRef(ref) {
             : Array.from(record.positions ?? []);
     }
 
-    if (positionsArr.length === 0) throw new Error("No turbine positions in ref");
+    if (positionsArr.length === 0) {
+        setPolygonWindOutput_Annual("0 MWh");
+        setPolygonWindOutput_Winter("—");
+        setPolygonWindOutput_Summer("—");
+    }
 
 
     const hubHeight =

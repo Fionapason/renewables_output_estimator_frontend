@@ -455,9 +455,6 @@ async function main() {
 
         await runOptimization(polyRec);
 
-        // compute AEP for the whole polygon turbine set
-        await computeAndUpdateOutputWind(polyRec);
-
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
@@ -511,6 +508,7 @@ async function main() {
         const newEntities = [];
 
         // 1) Determine rotor radius based on hubHeight
+        // TODO rename these variables to minimum distance, they are CONFUSING
         let rotorRadius;
         if (hubHeight === 150) rotorRadius = 450;
         else if (hubHeight === 125) rotorRadius = 350;
@@ -1026,7 +1024,6 @@ async function main() {
             loaderEl.hidden = true;
         }
 
-        await computeAndUpdateOutputWind(optimizedRef);
         return optimizedRef;
     }
 
@@ -1335,7 +1332,7 @@ async function main() {
         const groundPos = Cesium.Cartesian3.fromRadians(
             carto.longitude, carto.latitude, groundHeight
         );
-        const mast = viewer.entities.add({
+          viewer.entities.add({
             name: "Wind Turbine",
             position: groundPos,
             model: {
