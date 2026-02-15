@@ -1,7 +1,10 @@
 import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
-import {setPVOutput_Annual, setPVOutput_Winter, setPVOutput_Summer, setPolygonPVTradeoff} from "./solar_output_ui.js";
-import {setPolygonWindTradeoff} from "../wind_output/output_ui.js";
+import {setPVOutput_Annual, setPVOutput_Winter,
+    setPVOutput_Summer, setPolygonPVTradeoff,
+    startPVLoader, stopPVLoader} from "./solar_output_ui.js";
+import {showPolygonPVOutput} from "./solar_output_ui.js";
+
 
 const PV_API_BASE = "http://localhost:8000";
 
@@ -13,6 +16,14 @@ export async function computeAndUpdatePVOutput(ref) {
         setPVOutput_Summer("—");
         return;
     }
+
+    showPolygonPVOutput(ref); // you already do this elsewhere, but it’s ok to be redundant
+
+    requestAnimationFrame(() => startPVLoader());
+
+    //ensure panel is visible and loader is shown
+    const loaderBox = document.getElementById("PVLoader");
+    if (loaderBox) loaderBox.hidden = false;
 
     try {
         setPVOutput_Annual("Computing…");
@@ -80,7 +91,9 @@ export async function computeAndUpdatePVOutput(ref) {
         setPVOutput_Annual(`ERROR`);
         setPVOutput_Winter("");
         setPVOutput_Summer("");
-    }
+    } finally {
+    stopPVLoader();
+  }
 }
 
 

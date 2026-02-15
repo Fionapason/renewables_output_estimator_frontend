@@ -151,8 +151,12 @@
 </div>
 
 <!--POLYGON ENERGY OUTPUT PANEL-->
-<div id="polygonoutputPanel">
+<div id="polygonoutputWindPanel">
     <!--z-index==layer-->
+    <div id="WindLoader" hidden>
+        <canvas id="loadingCanvas_wind" width="260" height="120"></canvas>
+        <div id="loaderLabel_wind" class="loaderLabel_wind">Optimizing turbine layout within polygon…</div>
+    </div>
     <div id="polygonturbine_annual">
         <span class="value" id="polygonturbine_annual_windOutput">
             Annual Energy Output: —
@@ -170,10 +174,6 @@
             Summer Energy Output: —
         </span>
         <span class="delta" id="summer_wind_delta" hidden></span>
-    </div>
-    <div id="optimizerLoader" hidden>
-        <canvas id="optimizerCanvas" width="260" height="120"></canvas>
-        <div class="loaderLabel">Optimizing turbine layout within polygon…</div>
     </div>
 </div>
 

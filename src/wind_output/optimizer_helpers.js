@@ -3,7 +3,6 @@ import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.
 
 export function getPolygonVerticesCartesian(ref) {
     // Prefer stored vertices if present
-    console.log("Entered getPolygonVerticesCartesian")
     if (Array.isArray(ref.polygonVertices) && ref.polygonVertices.length >= 3) return ref.polygonVertices;
 
     // Fallback: read hierarchy from Cesium polygon entity
@@ -13,7 +12,6 @@ export function getPolygonVerticesCartesian(ref) {
 }
 
 export function removePolygonTurbines(ref, viewer, rotatingBladesRef) {
-    console.log("Entered removePolygonTurbines")
     if (!ref || !Array.isArray(ref.turbines)) return;
 
     // Remove from viewer

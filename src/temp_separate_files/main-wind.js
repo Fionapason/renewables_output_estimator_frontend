@@ -6,23 +6,36 @@ import {
     getPolygonVerticesCartesian
 } from "../wind_output/optimizer_helpers.js"
 import {generateHexagonalTurbinePositions} from "../wind_output/turbine_placers.js"
-import {showPolygonOutput, closePolygonOutput, setSelectedWindOutput_Annual, setSelectedWindOutput_Winter, setSelectedWindOutput_Summer} from "../wind_output/output_ui.js";
+import {
+    showPolygonOutput,
+    closePolygonOutput,
+    setSelectedWindOutput_Annual,
+    setSelectedWindOutput_Winter,
+    setSelectedWindOutput_Summer,
+    createComputingWindCanvasLoader, removePolygonWindTradeoff, setPolygonWindOutput_Annual
+} from "../wind_output/output_ui.js";
 import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
 
 
 // FIONA'S CHANGES
-let canvasLoader = null;
+let optimizerLoader = null;
+let computeLoader = null;
 
-function getCanvasLoader() {
-    if (canvasLoader) return canvasLoader;
+function getOptimizerCanvasLoader() {
+    if (optimizerLoader) return optimizerLoader;
 
-    const canvas = document.getElementById("optimizerCanvas");
-    if (!canvas) {
-        throw new Error("optimizerCanvas not found in DOM (panel not rendered yet?)");
-    }
 
-    canvasLoader = createOptimizerCanvasLoader();
-    return canvasLoader;
+    optimizerLoader = createOptimizerCanvasLoader();
+    return optimizerLoader;
+}
+
+function getWindComputeCanvasLoader() {
+    if (computeLoader) return computeLoader;
+
+
+    computeLoader = createComputingWindCanvasLoader()
+    return computeLoader
+
 }
 
 
@@ -447,6 +460,13 @@ async function main() {
         const polyRec = polygonTurbineRecords[polygonTurbineRecords.length - 1];
 
         // important: ensure output panel exists before loader tries to grab optimizerCanvas
+        console.log("[caller] before show/run", {
+            url: location.href,
+            inIframe: window !== window.parent,
+            hasPanel: !!document.getElementById("polygonoutputWindPanel"),
+        });
+
+
         showPolygonOptions(polyRec);
         showPolygonOutput(polyRec);
 
@@ -871,10 +891,16 @@ async function main() {
         // update selection
         selectedTurbineRef.entities = [mast, blades];
 
+        console.log("[caller] before show/run", {
+            url: location.href,
+            inIframe: window !== window.parent,
+            hasPanel: !!document.getElementById("polygonoutputWindPanel"),
+        });
+
         // FIONA'S CHANGES
-        showPolygonOptions(selectedTurbineRef)
-        showPolygonOutput(selectedTurbineRef)
-        await computeAndUpdateOutputWind(selectedTurbineRef);
+        showPolygonOptions(selectedTurbineRef);
+        showPolygonOutput(selectedTurbineRef);
+        await runWindCalculation(selectedTurbineRef);
     });
 
 
@@ -908,7 +934,7 @@ async function main() {
         document.getElementById('turbineOptions').style.display = 'none';
 
         // recompute polygon output (and per-turbine outputs)
-        await computeAndUpdateOutputWind(rec);
+        await runWindCalculation(rec);
     };
 
 
@@ -1003,7 +1029,7 @@ async function main() {
         // FIONA'S CHANGES
         // update turbine positions to the actual placed ground positions
         if (placedPositions) ref.positions = placedPositions;
-        await computeAndUpdateOutputWind(ref);
+        await runWindCalculation(ref);
     });
 
 
@@ -1011,9 +1037,13 @@ async function main() {
     async function runOptimization(ref) {
         if (!ref) throw new Error("runOptimization(ref): ref is required");
 
-        const loaderEl = document.getElementById("optimizerLoader");
+
+        const loading_message = document.getElementById("loaderLabel_wind");
+        loading_message.textContent = `Optimizing turbine layout within polygon…`;
+
+        const loaderEl = document.getElementById("WindLoader");
         loaderEl.hidden = false;
-        const loader = getCanvasLoader();
+        const loader = getOptimizerCanvasLoader();
         loader.start();
 
         let optimizedRef = ref;
@@ -1025,6 +1055,41 @@ async function main() {
         }
 
         return optimizedRef;
+    }
+
+    async function runWindCalculation(ref, movedMast) {
+
+        const loading_message = document.getElementById("loaderLabel_wind");
+        loading_message.textContent = `Computing energy output…`;
+
+
+        const panel = document.getElementById("polygonoutputWindPanel");
+
+        if (!panel) throw new Error("polygonoutputWindPanel not found");
+
+        const loaderEl = panel.querySelector("#WindLoader");
+        const canvas = panel.querySelector("#loadingCanvas_wind");
+
+        if (!loaderEl || !canvas) throw new Error("WindLoader/canvas not found inside wind panel");
+
+        // (optional but helps) force layout update before measuring canvas
+        loaderEl.hidden = false;
+        void loaderEl.offsetHeight;
+
+        const loader = getWindComputeCanvasLoader();
+
+        loader.start();
+
+        try {
+            if (movedMast != null) {
+                await computeAndUpdateOutputWind(ref, movedMast);
+            } else {
+                await computeAndUpdateOutputWind(ref);
+            }
+        } finally {
+            loader.stop()
+            loaderEl.hidden = true;
+        }
     }
 
 
@@ -1258,7 +1323,7 @@ async function main() {
 
         if (parentRec) {
             // recompute polygon (wake coupling) + selected turbine output
-            await computeAndUpdateOutputWind(parentRec, movedMast);
+            await runWindCalculation(parentRec, movedMast);
         } else {
             // standalone turbine: make a tiny record for compute
             const pos = movedMast.position.getValue(now);
@@ -1272,7 +1337,7 @@ async function main() {
                 positions: pos ? [pos] : []
             };
 
-            await computeAndUpdateOutputWind(singleRec, movedMast);
+            await runWindCalculation(singleRec, movedMast);
         }
     }, Cesium.ScreenSpaceEventType.RIGHT_UP);
 
@@ -1385,7 +1450,7 @@ async function main() {
         showTurbineOptions(selectedTurbineRef);
 
         // FIONA'S CHANGES
-        await computeAndUpdateOutputWind(selectedTurbineRef);
+        await runWindCalculation(selectedTurbineRef);
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 

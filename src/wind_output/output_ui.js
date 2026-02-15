@@ -3,17 +3,19 @@ import {optimizePolygon} from "./wind_api.js";
 let currentPoly = null;
 const turbine_size = 6;
 
-export function showPolygonOutput(ref) {
+export function showPolygonOutput() {
         // FIONA'S CHANGES
-        const polygonOutput = document.getElementById("polygonturbine_annual_windOutput");
+        const p = document.getElementById("polygonoutputWindPanel");
+        const cs = getComputedStyle(p);
 
-        const panel = document.getElementById("polygonoutputPanel");
+
+        const panel = document.getElementById("polygonoutputWindPanel");
         if (panel) panel.style.display = "block";
 
-    }
+}
 
 export function closePolygonOutput() {
-    const panel = document.getElementById("polygonoutputPanel");
+    const panel = document.getElementById("polygonoutputWindPanel");
     removePolygonWindTradeoff();
     if (panel) panel.style.display = "none";
 }
@@ -84,7 +86,7 @@ export function removePolygonWindTradeoff() {
 
 
 export function createOptimizerCanvasLoader({
-      canvasId = "optimizerCanvas",
+      canvasId = "loadingCanvas_wind",
       nTurbines = 5,
       retargetEveryMs = 2000
     } = {}) {
@@ -100,10 +102,28 @@ export function createOptimizerCanvasLoader({
       function resizeForDPR() {
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const rect = canvas.getBoundingClientRect();
-        canvas.width = Math.round(rect.width * dpr);
-        canvas.height = Math.round(rect.height * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+
+        // Fallback if not laid out yet or rect is weird
+        let cssW = rect.width;
+        let cssH = rect.height;
+
+        if (!Number.isFinite(cssW) || !Number.isFinite(cssH) || cssW <= 0 || cssH <= 0) {
+          cssW = canvas.width || 260;
+          cssH = canvas.height || 120;
+        }
+
+        // Clamp to avoid exceeding browser limits
+        const MAX = 8192; // safe-ish across browsers/GPUs
+        const pxW = Math.min(MAX, Math.round(cssW * dpr));
+        const pxH = Math.min(MAX, Math.round(cssH * dpr));
+
+        canvas.width = pxW;
+        canvas.height = pxH;
+
+        // draw in CSS pixels (also clamp transform if needed)
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
+
 
       // Turbines: current pos + target pos
       const turbines = Array.from({ length: nTurbines }, () => ({
@@ -309,7 +329,11 @@ function drawTurbine(ctx, xBase, yBase, size, angle) {
   // hub
   ctx.fillStyle = "#222";
   ctx.beginPath();
-  ctx.arc(hubX, hubY, size * 0.35, 0, Math.PI * 2);
+  if (size > 10 ) {
+    ctx.arc(hubX, hubY, size * 0.15, 0, Math.PI * 2);
+  } else {
+    ctx.arc(hubX, hubY, size * 0.35, 0, Math.PI * 2);
+  }
   ctx.fill();
 
   // blades
@@ -340,4 +364,84 @@ function tooClose(x, y, others, minD) {
     if (dx*dx + dy*dy < d2) return true;
   }
   return false;
+}
+
+
+export function createComputingWindCanvasLoader({
+      canvasId = "loadingCanvas_wind",
+    } = {}) {
+
+
+      const canvas = document.getElementById(canvasId);
+
+      if (!canvas) throw new Error(`Canvas not found: #${canvasId}`);
+
+      const ctx = canvas.getContext("2d");
+
+      // Handle CSS-scaled canvas: keep drawing in device pixels for crispness
+      function resizeForDPR() {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+      }
+
+
+      let raf = 0;
+      let running = false;
+
+      function step(ts) {
+        if (!running) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        const sidePad = 16;
+
+
+
+        // Draw
+        ctx.clearRect(0, 0, width, height);
+
+        const cx = width / 2;
+        const cy = height / 2;
+        const radius = Math.min(width, height) * 0.42;       // your old radius
+        const usableRadius = radius - sidePad;               // small inset
+
+        const poly = makeHexagon(cx, cy, usableRadius);
+
+
+        ctx.globalAlpha = 1;
+        const bladeSpin = ts * 0.008; // tweak speed
+        const single_turbine_size = 15;
+        const middle = cy + 2.4 * single_turbine_size
+        drawTurbine(ctx, cx, middle, single_turbine_size, bladeSpin);
+
+        raf = requestAnimationFrame(step);
+      }
+
+      function start() {
+        if (running) return;
+        resizeForDPR();
+        const rect = canvas.getBoundingClientRect();
+        running = true;
+        raf = requestAnimationFrame(step);
+      }
+
+      function stop() {
+        running = false;
+        if (raf) cancelAnimationFrame(raf);
+        raf = 0;
+        // optional: clear canvas
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+      }
+
+      window.addEventListener("resize", () => {
+        if (!running) return;
+        resizeForDPR();
+      });
+
+      return { start, stop };
 }

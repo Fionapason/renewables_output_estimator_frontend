@@ -181,11 +181,13 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
             setSelectedWindOutput_Summer("—");
         }
 
-        if (ref.annual_first != null) {
-            const annual_change_percent = Math.round((total_kWh / ref.annual_first - 1) * 100);
-            const winter_change_percent = Math.round((winter_kWh / ref.winter_first - 1) * 100);
-            const summer_change_percent = Math.round((summer_kWh / ref.summer_first - 1) * 100);
+        if (ref.annual_best != null) {
+            const annual_change_percent = Math.round((total_kWh / ref.annual_best - 1) * 100);
+            const winter_change_percent = Math.round((winter_kWh / ref.winter_best - 1) * 100);
+            const summer_change_percent = Math.round((summer_kWh / ref.summer_best - 1) * 100);
             setPolygonWindTradeoff(annual_change_percent, winter_change_percent, summer_change_percent)
+        } else {
+            console.log("NOT FIRST!")
         }
 
     } catch (e) {
