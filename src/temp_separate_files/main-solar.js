@@ -3,7 +3,7 @@ import * as Cesium from "cesium";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../solar_output/PV_api.js";
 import {computeAndUpdatePVOutput, setSpacingUI} from "../solar_output/PV_api.js";
-import {closePolygonPVOutput, showPolygonPVOutput} from "../solar_output/solar_output_ui.js"
+import {closePolygonPVOutput, showPolygonPVOutput, openPVParamsPanel, closePVParamsPanel} from "../solar_output/solar_output_ui.js"
 
 console.log("main.js loaded");
 
@@ -1665,7 +1665,7 @@ async function main() {
     const rightSouthBtn = document.getElementById('orientSouthBtn');
     const rightDownslopeBtn = document.getElementById('orientDownslopeBtn');
 
-//tilt stuff
+    //tilt stuff
     let currentTiltMode = "auto"; // "30", "75", "auto"
 
     const tilt30Btn = document.getElementById("tilt30Btn");
@@ -1673,11 +1673,49 @@ async function main() {
     const tiltAutoBtn = document.getElementById("tiltAutoBtn");
 
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// USER DEFINED PARAMETERS
+// ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    document.getElementById("openPVParamsBtn").onclick = () => {
+        if (!selectedPolygonRef) return;
+        openPVParamsPanel(selectedPolygonRef);
+    };
+
+    document.getElementById("closePVParamsBtn").onclick = () => closePVParamsPanel();
+
+    document.getElementById("pv_resetBtn").onclick = () => {
+        if (!selectedPolygonRef) return;
+        selectedPolygonRef.pvParamsOverride = null;
+        document.getElementById("pv_module_eff_pct").value = "";
+        document.getElementById("pv_system_losses_pct").value = "";
+        document.getElementById("pv_inverter_eff_pct").value = "";
+    };
+
+    document.getElementById("pv_applyBtn").onclick = async () => {
+        if (!selectedPolygonRef) return;
+
+        const eff = Number(document.getElementById("pv_module_eff_pct").value);
+        const losses = Number(document.getElementById("pv_system_losses_pct").value);
+        const inv = Number(document.getElementById("pv_inverter_eff_pct").value);
+
+        // allow blanks = “use defaults”
+        const hasAny = !Number.isNaN(eff) || !Number.isNaN(losses) || !Number.isNaN(inv);
+        selectedPolygonRef.pvParamsOverride = hasAny ? {
+            module_efficiency_pct: Number.isNaN(eff) ? null : eff,
+            system_losses_pct: Number.isNaN(losses) ? null : losses,
+            inverter_efficiency_pct: Number.isNaN(inv) ? null : inv,
+        } : null;
+
+        closePVParamsPanel();
+
+        await computeAndUpdatePVOutput(selectedPolygonRef);
+    };
+
+// ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // FUNCTION V: RIGHT CLICK TO SELECT POLYGON AND SELECTION PANEL
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 
-// RIGHT CLICK when not drawing: select polygon
+    // RIGHT CLICK when not drawing: select polygon
     selectHandler.setInputAction((movement) => {
         if (drawing) return;
         const picked = viewer.scene.pick(movement.position);
@@ -1704,7 +1742,7 @@ async function main() {
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
 
-// TILT ANGLES
+    // TILT ANGLES
     function setTiltMode(mode) {
         currentTiltMode = mode;
 

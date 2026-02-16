@@ -445,3 +445,60 @@ export function createComputingWindCanvasLoader({
 
       return { start, stop };
 }
+
+
+export function showTpError(msg) {
+  const tpError = document.getElementById("tp_error");
+  tpError.textContent = msg;
+  tpError.style.display = msg ? "block" : "none";
+}
+
+export function openTurbineParamsPanel(ref) {
+  if (!ref) return;
+  const turbineParamsPanel = document.getElementById("turbineParamsPanel");
+  if (!turbineParamsPanel) throw new Error("Missing #turbineParamsPanel in DOM");
+  // load existing overrides (if any) into the form
+  const o = ref.turbineParamsOverride ?? null;
+
+  document.getElementById("tp_rated_kw").value = o?.rated_power_kw ?? "";
+  document.getElementById("tp_v_cutin").value = o?.cut_in_ms ?? "";
+  document.getElementById("tp_v_rated").value = o?.rated_ms ?? "";
+  document.getElementById("tp_v_cutout").value = o?.cut_out_ms ?? "";
+
+  showTpError("");
+  turbineParamsPanel.style.display = "block";
+}
+
+export function closeTurbineParamsPanel() {
+  const turbineParamsPanel = document.getElementById("turbineParamsPanel");
+  turbineParamsPanel.style.display = "none";
+  showTpError("");
+}
+
+export function readTpForm() {
+  const rated_power_kw = Number(document.getElementById("tp_rated_kw").value);
+  const cut_in_ms = Number(document.getElementById("tp_v_cutin").value);
+  const rated_ms = Number(document.getElementById("tp_v_rated").value);
+  const cut_out_ms = Number(document.getElementById("tp_v_cutout").value);
+
+  // allow “empty = no override”
+  const anyFilled =
+    document.getElementById("tp_rated_kw").value !== "" ||
+    document.getElementById("tp_v_cutin").value !== "" ||
+    document.getElementById("tp_v_rated").value !== "" ||
+    document.getElementById("tp_v_cutout").value !== "";
+
+  if (!anyFilled) return null;
+
+  if (![rated_power_kw, cut_in_ms, rated_ms, cut_out_ms].every(Number.isFinite)) {
+    throw new Error("Please fill all fields with valid numbers (or hit Reset).");
+  }
+
+  if (!(cut_in_ms < rated_ms && rated_ms < cut_out_ms)) {
+    throw new Error("Require cut-in < rated < cut-out.");
+  }
+
+  if (rated_power_kw <= 0) throw new Error("Rated power must be > 0.");
+
+  return { rated_power_kw, cut_in_ms, rated_ms, cut_out_ms };
+}

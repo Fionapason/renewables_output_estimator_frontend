@@ -150,7 +150,8 @@ async function buildAnnualPayloadFromPVPolygonRef(ref) {
     return {
         gcr: gcr,
         no_one_or_multiple_rows: Math.max(rows, 1),
-        panels: panelDTOs
+        panels: panelDTOs,
+        pv_params: ref.pvParamsOverride ?? null
     };
 }
 

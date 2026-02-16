@@ -12,7 +12,13 @@ import {
     setSelectedWindOutput_Annual,
     setSelectedWindOutput_Winter,
     setSelectedWindOutput_Summer,
-    createComputingWindCanvasLoader, removePolygonWindTradeoff, setPolygonWindOutput_Annual
+    createComputingWindCanvasLoader,
+    removePolygonWindTradeoff,
+    setPolygonWindOutput_Annual,
+    openTurbineParamsPanel,
+    closeTurbineParamsPanel,
+    showTpError,
+    readTpForm
 } from "../wind_output/output_ui.js";
 import {createOptimizerCanvasLoader} from "../wind_output/output_ui.js";
 
@@ -321,7 +327,6 @@ async function main() {
             infoPanel.style.display = 'none';
         }
     });
-
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // DRAW POLYGON FOR PLACING TURBINES
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1091,6 +1096,43 @@ async function main() {
             loaderEl.hidden = true;
         }
     }
+
+// ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// USER INPUT
+// ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    // Button wiring
+    document.getElementById("openTurbineParamsBtn").onclick = () => {
+        if (!selectedPolygonRef) return;
+        openTurbineParamsPanel(selectedPolygonRef);
+    };
+
+    document.getElementById("closeTurbineParamsBtn").onclick = closeTurbineParamsPanel;
+
+    document.getElementById("tp_resetBtn").onclick = async () => {
+        if (!selectedPolygonRef) return;
+        selectedPolygonRef.turbineParamsOverride = null;   // clear overrides
+        closeTurbineParamsPanel();
+
+        // trigger recalc
+        await computeAndUpdateOutputWind(selectedPolygonRef);
+    };
+
+    document.getElementById("tp_applyBtn").onclick = async () => {
+        if (!selectedPolygonRef) return;
+
+        try {
+            const override = readTpForm();
+            selectedPolygonRef.turbineParamsOverride = override; // store on polygon ref
+            closeTurbineParamsPanel();
+
+            // trigger recalc (same function you already use after edits)
+            await runWindCalculation(selectedPolygonRef);
+        } catch (e) {
+            showTpError(e?.message ?? String(e));
+        }
+    };
+
 
 
 

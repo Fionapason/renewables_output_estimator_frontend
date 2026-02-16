@@ -265,3 +265,23 @@ export function stopPVLoader() {
     }
     if (box) box.hidden = true;
 }
+
+export function openPVParamsPanel(ref) {
+  const panel = document.getElementById("pvParamsPanel");
+  if (!panel) return;
+
+  // prefill from existing overrides (or blank)
+  const params = ref?.pvParamsOverride ?? {};
+  document.getElementById("pv_module_eff_pct").value = params.module_efficiency_pct ?? "";
+  document.getElementById("pv_system_losses_pct").value = params.system_losses_pct ?? "";
+  document.getElementById("pv_inverter_eff_pct").value = params.inverter_efficiency_pct ?? "";
+
+  panel.style.display = "block";
+}
+
+export function closePVParamsPanel() {
+  const panel = document.getElementById("pvParamsPanel");
+  if (panel) panel.style.display = "none";
+  const err = document.getElementById("pv_params_error");
+  if (err) err.style.display = "none";
+}

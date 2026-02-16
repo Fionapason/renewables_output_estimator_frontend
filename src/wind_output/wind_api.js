@@ -7,7 +7,8 @@ import {
 } from "./optimizer_helpers.js";
 import {
     setPolygonWindOutput_Annual, setPolygonWindOutput_Winter, setPolygonWindOutput_Summer, setSelectedWindOutput_Annual,
-    setSelectedWindOutput_Winter, setSelectedWindOutput_Summer, setPolygonWindTradeoff, removePolygonWindTradeoff
+    setSelectedWindOutput_Winter, setSelectedWindOutput_Summer, setPolygonWindTradeoff, removePolygonWindTradeoff,
+
 } from "./output_ui.js";
 
 const WIND_API_BASE = "http://localhost:8080";
@@ -225,6 +226,8 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
 
     const ref = selectedPolygonRef;
 
+    const turbine_params = ref.turbineParamsOverride ?? null;
+
     // Hub height from panel (already synced in showPolygonOptions)
     const hubHeight = parseInt(document.getElementById("polyHubHeight").value, 10) || ref.hubHeight || 100;
 
@@ -267,6 +270,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
         hub_height_m: hubHeight,
         minimum_distance_diameter: rotorDiameter_m,
         min_spacing_D: min_spacing_D,
+        turbine_params: turbine_params,
         candidates
     };
 
@@ -527,7 +531,6 @@ async function buildAnnualWindPayloadFromPolygonRef(ref) {
     if (turbineDTOs.length === 0) throw new Error("Could not build turbine DTOs");
 
     console.log("[payload turbines]", turbineDTOs.map(t => [t.id, t.lon.toFixed(5), t.lat.toFixed(5)]));
-
     return {
         turbines: turbineDTOs
     };

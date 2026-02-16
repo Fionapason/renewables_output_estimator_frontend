@@ -93,6 +93,8 @@
         <option value="100">100 m</option>
     </select>
 
+    <button id="openTurbineParamsBtn" class="btn">Customize Parameters</button>
+
     <button id="deletePolygonBtn">delete polygon</button>
 
 </div>
@@ -176,6 +178,46 @@
         <span class="delta" id="summer_wind_delta" hidden></span>
     </div>
 </div>
+
+<!--POLYGON USER PARAMETERS PANEL-->
+<div id="turbineParamsPanel"
+     class="panel"
+     style="display:none; position:absolute; top:10px; left:520px; width:260px; z-index:9999; background:#F7F4C8;">
+  <div class="panelHeader">
+    <div class="panelTitle">Turbine parameters</div>
+    <button id="closeTurbineParamsBtn" class="panelClose">×</button>
+  </div>
+  <!----- TODO DEFAULT PARAMETERS IN PLACEHOLDER---->
+  <div class="panelBody">
+    <div class="formRow">
+      <label for="tp_rated_kw">Rated power (kW)</label>
+      <input id="tp_rated_kw" type="number" step="1" min="0" placeholder="e.g. 5000">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_cutin">Cut-in speed (m/s)</label>
+      <input id="tp_v_cutin" type="number" step="0.1" min="0" placeholder="e.g. 3.0">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_rated">Rated speed (m/s)</label>
+      <input id="tp_v_rated" type="number" step="0.1" min="0" placeholder="e.g. 12.0">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_cutout">Cut-out speed (m/s)</label>
+      <input id="tp_v_cutout" type="number" step="0.1" min="0" placeholder="e.g. 25.0">
+    </div>
+
+    <div class="panelFooter">
+      <button id="tp_resetBtn" class="btnSecondary">Reset</button>
+      <button id="tp_applyBtn" class="btnPrimary">Apply & re-Optimize</button>
+    </div>
+
+    <div id="tp_error" class="errorText" style="display:none;"></div>
+  </div>
+</div>
+
 
 
 <script type="module" src="/src/temp_separate_files/main-wind.js"></script>
