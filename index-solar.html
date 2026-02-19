@@ -111,12 +111,7 @@
 
 
     <hr>
-    <div id="pvOutput" style="font-family:Bahnschrift; font-size:13px; color:#333;">
-      output: —
-    </div>
-
-
-    <hr>
+    <button id="openPVParamsBtn" class="btn">Customize Parameters</button>
     <button id="deletePolygonBtn" style="background:#c00;color:#fff;">
         delete polygon &amp; panels
     </button>
@@ -159,6 +154,51 @@
                 z-index:9999;">
     GCR not feasible (GCR > 1)
 </div>
+
+<!--POLYGON ENERGY OUTPUT PANEL-->
+<div id="polygonoutputPVPanel">
+    <div id="PVLoader" hidden>
+        <canvas id="loadingCanvas_pv" width="260" height="120"></canvas>
+        <div id="loaderLabel_pv" class="loaderLabel_pv">Computing PV output…</div>
+    </div>
+    <div id="pv_Annual">
+        <span class="value" id="pvOutput_Annual">Annual Energy Output: —</span>
+        <span class="delta" id="annual_pv_delta" hidden></span>
+    </div>
+    <div id="pv_Winter">
+        <span class="value" id="pvOutput_Winter"></span>
+        <span class="delta" id="winter_pv_delta" hidden></span>
+    </div>
+    <div id="pv_Summer">
+        <span class="value" id="pvOutput_Summer"></span>
+        <span class="delta" id="summer_pv_delta" hidden></span>
+    </div>
+</div>
+
+<!--POLYGON PV USER PARAMETERS PANEL-->
+<div id="pvParamsPanel"
+     class="panel"
+     style="display:none; position:absolute; top:10px; left:350px; width:260px; z-index:9999; background:#F7F4C8;">
+  <h4>PV parameters</h4>
+
+  <label for="pv_module_eff_pct">Nominal Module Efficiency (%)</label>
+  <input id="pv_module_eff_pct" type="number" step="0.1" min="0" max="100" placeholder="e.g. 20">
+
+  <label for="pv_system_losses_pct">System Losses (%)</label>
+  <input id="pv_system_losses_pct" type="number" step="0.1" min="0" max="100" placeholder="e.g. 14">
+
+  <label for="pv_inverter_eff_pct">Inverter Efficiency (%)</label>
+  <input id="pv_inverter_eff_pct" type="number" step="0.1" min="0" max="100" placeholder="e.g. 96">
+
+  <hr>
+
+  <button id="pv_resetBtn">Reset</button>
+  <button id="pv_applyBtn">Apply & recompute</button>
+  <button id="closePVParamsBtn" style="float:right;">Close</button>
+
+  <div id="pv_params_error" style="display:none; color:#c00; margin-top:8px;"></div>
+</div>
+
 
 <script type="module" src="/src/temp_separate_files/main-solar.js"></script>
 </body>

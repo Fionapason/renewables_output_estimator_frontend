@@ -1,156 +1,225 @@
-<!--TODO add output visual-->
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>renewables_output_estimator_frontend</title>
-  </head>
-  <body>
+</head>
+<body>
 
-  <!--BODY (WITHOUT STYLE OR SCRIPT) FROM HEIDI'S CODE-->
+<!--BODY (WITHOUT STYLE OR SCRIPT) FROM HEIDI'S CODE-->
 
-        <div id="cesiumContainer" class="fullSize"></div>
-        <div id="loadingOverlay"><h1>Loading...</h1></div>
-        <div id="toolbar"></div>
+<div id="cesiumContainer" class="fullSize"></div>
+<div id="loadingOverlay"><h1>Loading...</h1></div>
+<div id="toolbar"></div>
 
 
-        <div id="scenarioSelector" class="panel">
-          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-              <div style="display:flex; gap:8px; align-items:center;">
-          <!-- Solar button -->
-          <button id="southBtn" class="orientation-btn" title="solar"
-            style="border-radius:50%; width:40px; height:40px; padding:0;
+<div id="scenarioSelector" class="panel">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <!-- Solar button -->
+            <button id="southBtn" class="orientation-btn" title="solar"
+                    style="border-radius:50%; width:40px; height:40px; padding:0;
                    display:flex; align-items:center; justify-content:center;">
-            <!-- Sun icon -->
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="5"></circle>
-              <line x1="12" y1="1" x2="12" y2="3"></line>
-              <line x1="12" y1="21" x2="12" y2="23"></line>
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-              <line x1="1" y1="12" x2="3" y2="12"></line>
-              <line x1="21" y1="12" x2="23" y2="12"></line>
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-            </svg>
-          </button>
+                <!-- Sun icon -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
 
-          <!-- Wind button (ACTIVE by default) -->
-          <button id="windBtn" class="orientation-btn active" title="wind"
-            style="border-radius:50%; width:40px; height:40px; padding:0;
+            <!-- Wind button (ACTIVE by default) -->
+            <button id="windBtn" class="orientation-btn active" title="wind"
+                    style="border-radius:50%; width:40px; height:40px; padding:0;
                    display:flex; align-items:center; justify-content:center;">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 9h7
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 9h7
                          c2 0 3.4-1 3.4-2.2
                          c0-1.1-1.1-2.2-2.4-2.2
-                         c-1.1 0-2 .6-2.4 1.3" />
+                         c-1.1 0-2 .6-2.4 1.3"/>
 
-                <path d="M3 12h14
+                    <path d="M3 12h14
                          c1.9 0 3.1-1 3.1-2
-                         s-1.2-2-3.1-2" />
+                         s-1.2-2-3.1-2"/>
 
-                <path d="M7 15h9
+                    <path d="M7 15h9
                          c2 0 3 1.2 3 2.2
-                         s-1 2.2-3 2.2" />
-            </svg>
-          </button>
-            </div>
+                         s-1 2.2-3 2.2"/>
+                </svg>
+            </button>
         </div>
+    </div>
 
 
-          <!---- divider ---------------------------------------------------------------------------->
-          <hr>
+    <!---- divider ---------------------------------------------------------------------------->
+    <hr>
 
-          <!---- visibility toggles  ---------------------------------------------------------------------------->
-        <label style="display: block; margin-bottom: 5px; color: #333;font-weight: bold;">display:</label>
-          <label style="font-weight: normal;">
-          <input type="checkbox" id="suitabilityGeoToggle" class="layer-checkbox" checked=""> suitability
-        </label>
-         <label style="font-weight: normal;">
-          <input type="checkbox" id="vegetationToggle" class="layer-checkbox" checked=""> trees
-        </label>
-           <label style="font-weight: normal;">
-          <input type="checkbox" id="buildingsToggle" class="layer-checkbox" checked=""> buildings
-        </label>
+    <!---- visibility toggles  ---------------------------------------------------------------------------->
+    <label style="display: block; margin-bottom: 5px; color: #333;font-weight: bold;">display:</label>
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="suitabilityGeoToggle" class="layer-checkbox" checked=""> suitability
+    </label>
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="vegetationToggle" class="layer-checkbox" checked=""> trees
+    </label>
+    <label style="font-weight: normal;">
+        <input type="checkbox" id="buildingsToggle" class="layer-checkbox" checked=""> buildings
+    </label>
 
-        </div>
-
-
-           <!---- polygon options ---------------------------------------------------------------------------->
-        <div id="polygonOptions" class="panel" style="background: #F7F4C8; display:none; position:absolute; top:10px; left:150px; width:150px;">
-            <h4>polygon options</h4>
+</div>
 
 
-
-            <label>change hub heights:</label>
-
-            <select id="polyHubHeight">
-            <option value="150">150 m</option>
-            <option value="125">125 m</option>
-            <option value="100">100 m</option>
-            </select>
-
-            <hr>
-            <div id="polygonturbine_windOutput" style="font-family:Bahnschrift; font-size:13px; color:#333;">
-                output: —
-            </div>
-
-            <button id="optimizePolygonBtn">OPTIMIZE LAYOUT</button>
-
-            <button id="deletePolygonBtn">delete polygon</button>
-
-        </div>
+<!---- polygon options ---------------------------------------------------------------------------->
+<div id="polygonOptions" class="panel"
+     style="background: #F7F4C8; display:none; position:absolute; top:10px; left:150px; width:150px;">
+    <h4>polygon options</h4>
 
 
-           <!---- turbine options ---------------------------------------------------------------------------->
-        <div id="turbineOptions" class="panel" style="background: #D4AB69; display:none; position:absolute; top:10px; left:350px; width:150px; z-index:100;">
+    <label>change hub heights:</label>
 
-            <h4>turbine options</h4>
-            <label>change hub height:</label>
-            <select id="turbineHubHeight">
-            <option value="150">150 m</option>
-            <option value="125">125 m</option>
-            <option value="100">100 m</option>
-            </select>
+    <select id="polyHubHeight">
+        <option value="150">150 m</option>
+        <option value="125">125 m</option>
+        <option value="100">100 m</option>
+    </select>
 
-            <hr>
-            <div id="singleturbine_windOutput" style="font-family:Bahnschrift; font-size:13px; color:#333;">
-                output: —
-            </div>
+    <button id="openTurbineParamsBtn" class="btn">Customize Parameters</button>
 
-            <button id="deleteTurbineBtn">delete turbine</button>
-        </div>
+    <button id="deletePolygonBtn">delete polygon</button>
+
+</div>
 
 
-  <!---- information panel ---------------------------------------------------------------------------->
+<!---- turbine options ---------------------------------------------------------------------------->
+<div id="turbineOptions" class="panel"
+     style="background: #D4AB69; display:none; position:absolute; top:10px; left:350px; width:150px; z-index:100;">
 
-        <!-- Info Button -->
-        <button id="showInfoBtn" class="panel" style="width:36px; height:36px; min-width:0; padding:0; display:flex; align-items:center; justify-content:center; left:0px; top:210px; z-index:150; font-size:22px; font-weight:bold;">
-          i
-        </button>
+    <h4>turbine options</h4>
+    <label>change hub height:</label>
+    <select id="turbineHubHeight">
+        <option value="150">150 m</option>
+        <option value="125">125 m</option>
+        <option value="100">100 m</option>
+    </select>
+
+    <hr>
+    <div id="singleturbine_windOutput_annual" style="font-family:sans-serif; font-size:13px; color:#333;">
+        Annual Energy Output: —
+    </div>
+    <div id="singleturbine_windOutput_winter" style="font-family:sans-serif; font-size:13px; color:#333;">
+    </div>
+    <div id="singleturbine_windOutput_summer" style="font-family:sans-serif; font-size:13px; color:#333;">
+    </div>
 
 
-        <!-- Hidden Info Panel -->
-        <div id="infoPanel" class="panel" style="left:0px; top:260px; width:250px; z-index:200; display:none;">
-          <h4>keyboard shortcuts</h4>
-          <ul style="padding-left:5px; margin-bottom:0;">
-            <div><b>left click</b> → draw polygon</div>
-            <div><b>right click</b> → finish or select polygon</div>
-            <div><b>E</b> → exit selection/functions</div>
-             <div><b>N</b> + <b>right click</b> → add turbine</div>
-            <div><b>S</b> + <b>right click</b> → select turbine</div>
-            <div><b>R</b> + <b>right click</b> → resize turbine</div>
-            <div><b>M</b> + <b>right click + drag</b> → move turbine</div>
+    <button id="deleteTurbineBtn">delete turbine</button>
+</div>
 
 
-          </ul>
+<!---- information panel ---------------------------------------------------------------------------->
 
-        </div>
+<!-- Info Button -->
+<button id="showInfoBtn" class="panel"
+        style="width:36px; height:36px; min-width:0; padding:0; display:flex; align-items:center; justify-content:center; left:0px; top:210px; z-index:150; font-size:22px; font-weight:bold;">
+    i
+</button>
 
-            <script type="module" src="/src/temp_separate_files/main-wind.js"></script>
-  </body>
+
+<!-- Hidden Info Panel -->
+<div id="infoPanel" class="panel" style="left:0px; top:260px; width:250px; z-index:200; display:none;">
+    <h4>keyboard shortcuts</h4>
+    <ul style="padding-left:5px; margin-bottom:0;">
+        <div><b>left click</b> → draw polygon</div>
+        <div><b>right click</b> → finish or select polygon</div>
+        <div><b>E</b> → exit selection/functions</div>
+        <div><b>N</b> + <b>right click</b> → add turbine</div>
+        <div><b>S</b> + <b>right click</b> → select turbine</div>
+        <div><b>R</b> + <b>right click</b> → resize turbine</div>
+        <div><b>M</b> + <b>right click + drag</b> → move turbine</div>
+
+
+    </ul>
+
+</div>
+
+<!--POLYGON ENERGY OUTPUT PANEL-->
+<div id="polygonoutputWindPanel">
+    <!--z-index==layer-->
+    <div id="WindLoader" hidden>
+        <canvas id="loadingCanvas_wind" width="260" height="120"></canvas>
+        <div id="loaderLabel_wind" class="loaderLabel_wind">Optimizing turbine layout within polygon…</div>
+    </div>
+    <div id="polygonturbine_annual">
+        <span class="value" id="polygonturbine_annual_windOutput">
+            Annual Energy Output: —
+        </span>
+        <span class="delta" id="annual_wind_delta" hidden></span>
+  </div>
+    <div id="polygonturbine_winter">
+        <span class="value" id="polygonturbine_winter_windOutput">
+            Winter Energy Output: —
+        </span>
+        <span class="delta" id="winter_wind_delta" hidden></span>
+    </div>
+    <div id="polygonturbine_summer">
+        <span class="value" id="polygonturbine_summer_windOutput">
+            Summer Energy Output: —
+        </span>
+        <span class="delta" id="summer_wind_delta" hidden></span>
+    </div>
+</div>
+
+<!--POLYGON USER PARAMETERS PANEL-->
+<div id="turbineParamsPanel"
+     class="panel"
+     style="display:none; position:absolute; top:10px; left:520px; width:260px; z-index:9999; background:#F7F4C8;">
+  <div class="panelHeader">
+    <div class="panelTitle">Turbine parameters</div>
+    <button id="closeTurbineParamsBtn" class="panelClose">×</button>
+  </div>
+  <!----- TODO DEFAULT PARAMETERS IN PLACEHOLDER---->
+  <div class="panelBody">
+    <div class="formRow">
+      <label for="tp_rated_kw">Rated power (kW)</label>
+      <input id="tp_rated_kw" type="number" step="1" min="0" placeholder="e.g. 5000">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_cutin">Cut-in speed (m/s)</label>
+      <input id="tp_v_cutin" type="number" step="0.1" min="0" placeholder="e.g. 3.0">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_rated">Rated speed (m/s)</label>
+      <input id="tp_v_rated" type="number" step="0.1" min="0" placeholder="e.g. 12.0">
+    </div>
+
+    <div class="formRow">
+      <label for="tp_v_cutout">Cut-out speed (m/s)</label>
+      <input id="tp_v_cutout" type="number" step="0.1" min="0" placeholder="e.g. 25.0">
+    </div>
+
+    <div class="panelFooter">
+      <button id="tp_resetBtn" class="btnSecondary">Reset</button>
+      <button id="tp_applyBtn" class="btnPrimary">Apply & re-Optimize</button>
+    </div>
+
+    <div id="tp_error" class="errorText" style="display:none;"></div>
+  </div>
+</div>
+
+
+
+<script type="module" src="/src/temp_separate_files/main-wind.js"></script>
+</body>
 </html>
