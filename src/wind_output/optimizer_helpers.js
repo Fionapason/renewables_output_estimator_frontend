@@ -93,7 +93,7 @@ export function generateCandidateLonLat(cartesians, spacingMeters, boundaryStepM
 }
 
 // place turbines at explicit lon/lat list (returned by optimizer)
-export async function placeTurbinesAtLonLat(lonLatList, hubHeight, viewer, rotatingBlades) {
+export async function placeTurbinesAtLonLat(lonLatList, hubHeight, viewer, rotatingBlades, headingDegList = []) {
     const newEntities = [];
     if (!lonLatList || lonLatList.length === 0) return newEntities;
 
@@ -103,28 +103,44 @@ export async function placeTurbinesAtLonLat(lonLatList, hubHeight, viewer, rotat
 
     const detailed = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartos);
 
-    detailed.forEach(c => {
+    detailed.forEach((c,i) => {
         const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
 
+
+        const dominantDeg = headingDegList[i] ?? 0;
+        const baseHeading = Cesium.Math.toRadians(dominantDeg); // see note below about +180 etc
+
         const mast = viewer.entities.add({
-            name: "Wind Turbine",
             position: groundPos,
+            orientation: new Cesium.ConstantProperty(
+                Cesium.Transforms.headingPitchRollQuaternion(
+                    groundPos,
+                    new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
+                )
+            ),
             model: { uri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`, scale: 1, runAnimations: false },
-            description: `Initial hub height: ${hubHeight} meters`
         });
+
+        // optional: store for later updates
+        mast._baseHeading = baseHeading;
         newEntities.push(mast);
 
         const hubPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + hubHeight);
         const blades = viewer.entities.add({
             position: hubPos,
             orientation: Cesium.Transforms.headingPitchRollQuaternion(
-                hubPos, new Cesium.HeadingPitchRoll(0, 0, 0)
+                hubPos, new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
             ),
             model: { uri: `/tiles/turbines/bladesandhub${hubHeight}center.glb`, scale: 1, runAnimations: false }
         });
+        // store for animation loop
+        blades._baseHeading = baseHeading;
+
         newEntities.push(blades);
         rotatingBlades.push(blades);
     });
+
+
 
     return newEntities;
 }

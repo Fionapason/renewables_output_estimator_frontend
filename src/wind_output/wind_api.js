@@ -30,6 +30,8 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
         const payload = await buildAnnualWindPayloadFromPolygonRef(ref);
         const result = await callComputeWind(payload);
 
+        console.log(result)
+
         console.error("[wind] API result keys:", Object.keys(result || {}));
         console.error("[wind] API per-turbine maps:", {
             annual: result?.per_turbine_annual,
@@ -37,8 +39,57 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
             summer: result?.per_turbine_summer,
         });
 
+        // get dominant direction
+        const dirMap = result?.per_turbine_dominant_direction_deg ?? null;
+
+        if (dirMap && typeof dirMap === "object") {
+            const record = ref.record ?? ref;
+
+            const now = Cesium.JulianDate.now();
+
+            const masts = (record.turbines ?? []).filter(e => {
+                const uri = e?.model?.uri?.getValue?.(now) ?? "";
+                return uri.includes("mastandnacelle");
+            });
+
+            const blades = (record.turbines ?? []).filter(e => {
+                const uri = e?.model?.uri?.getValue?.(now) ?? "";
+                return uri.includes("bladesandhub");
+            });
+
+          payload.turbines.forEach((t, i) => {
+
+              const deg = dirMap[t.id];
+
+              if (deg == null) return;
+
+              const baseHeading = Cesium.Math.toRadians(deg);
+
+              const mast = masts[i];
+
+              if (mast) {
+                  mast._baseHeading = baseHeading;
+                  const pos = mast.position.getValue(now);
+                  mast.orientation = new Cesium.ConstantProperty(
+                      Cesium.Transforms.headingPitchRollQuaternion(pos, new Cesium.HeadingPitchRoll(baseHeading, 0, 0))
+                  );
+              }
+
+              const b = blades[i];
+
+              if (b) {
+                  b._baseHeading = baseHeading;
+                  const pos = b.position.getValue(now);
+                  b.orientation = new Cesium.ConstantProperty(
+                      Cesium.Transforms.headingPitchRollQuaternion(pos, new Cesium.HeadingPitchRoll(baseHeading, 0, 0))
+                  );
+              }
+          });
+        }
+
 
         const total_kWh = result?.annual_kWh;
+
         if (total_kWh == null) {
             setPolygonWindOutput_Annual("API ok, missing annual_kWh");
             setSelectedWindOutput_Annual("—");
@@ -301,9 +352,18 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
 
     // 6) Place optimized turbines
     const lonLatList = optimized.map(t => [t.lon, t.lat]);
-    const newEntities = await placeTurbinesAtLonLat(lonLatList, hubHeight, viewer, rotatingBlades);
+    const headingDegList = optimized.map(t => (t.dominant_direction_deg ?? 0));
 
-    // 7) Update record + recompute AEP
+
+    const newEntities = await placeTurbinesAtLonLat(
+        lonLatList,
+        hubHeight,
+        viewer,
+        rotatingBlades,
+        headingDegList
+    );
+
+    // 7) Update record
     ref.turbines = newEntities;
     ref.hubHeight = hubHeight;
 
