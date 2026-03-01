@@ -264,10 +264,10 @@ async function main() {
         }
     }
 
-// Ensure swissBuildings and swissVegetation are defined globally
+    // Ensure swissBuildings and swissVegetation are defined globally
     let swissBuildings, swissVegetation;
 
-// Wait for the tilesets to load, then store them globally
+    // Wait for the tilesets to load, then store them globally
     async function loadSwissTopoData() {
         try {
             const swisstopoTerrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(
@@ -282,11 +282,11 @@ async function main() {
                 'https://3d.geo.admin.ch/ch.swisstopo.vegetation.3d/v1/tileset.json'
             );
 
-// Add to scene
+            // Add to scene
             viewer.scene.primitives.add(swissBuildings);
             viewer.scene.primitives.add(swissVegetation);
 
-// Set initial visibility based on checkboxes
+            // Set initial visibility based on checkboxes
             toggleTileset(swissBuildings, document.getElementById("buildingsToggle").checked);
             toggleTileset(swissVegetation, document.getElementById("vegetationToggle").checked);
 
@@ -296,10 +296,10 @@ async function main() {
         }
     }
 
-// Call function to load the data
+    // Call function to load the data
     loadSwissTopoData();
 
-// Add event listeners for checkboxes
+    // Add event listeners for checkboxes
     document.getElementById("vegetationToggle").addEventListener("change", function () {
         toggleTileset(swissVegetation, this.checked);
     });
@@ -313,7 +313,7 @@ async function main() {
 // INFO BUTTON
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-// Toggle Info Panel visibility
+    // Toggle Info Panel visibility
     document.getElementById('showInfoBtn').addEventListener('click', function () {
         const infoPanel = document.getElementById('infoPanel');
         infoPanel.style.display = (infoPanel.style.display === 'none' || infoPanel.style.display === '') ? 'block' : 'none';
@@ -1127,7 +1127,7 @@ async function main() {
             closeTurbineParamsPanel();
 
             // trigger recalc (same function you already use after edits)
-            await runWindCalculation(selectedPolygonRef);
+            await runOptimization(selectedPolygonRef);
         } catch (e) {
             showTpError(e?.message ?? String(e));
         }
@@ -1496,6 +1496,6 @@ async function main() {
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
-};
+}
 
 main();

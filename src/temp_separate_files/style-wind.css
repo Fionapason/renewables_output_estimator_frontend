@@ -223,3 +223,33 @@ html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0;
 #polygonoutputWindPanel .delta.pos { color: #1a7f37; } /* green */
 #polygonoutputWindPanel .delta.neg { color: #d1242f; } /* red */
 #polygonoutputWindPanel .delta.zero { color: #6e7781; } /* grey */
+
+
+#polygonturbine_households {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    font-size: 1.2em;
+    margin-top: 0.8em;
+    font-weight: bold;
+}
+
+#polygonturbine_households .icon {
+    height: 1em;
+    width: 1em;
+}
+
+
+#polygonturbine_person {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    font-size: 1.2em;
+    margin-top: 0.8em;
+    font-weight: bold;
+}
+
+#polygonturbine_person .icon {
+    height: 1em;
+    width: 1em;
+}

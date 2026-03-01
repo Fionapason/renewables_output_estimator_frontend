@@ -8,8 +8,7 @@ import {
 import {
     setPolygonWindOutput_Annual, setPolygonWindOutput_Winter, setPolygonWindOutput_Summer, setSelectedWindOutput_Annual,
     setSelectedWindOutput_Winter, setSelectedWindOutput_Summer, setPolygonWindTradeoff, removePolygonWindTradeoff,
-
-} from "./output_ui.js";
+    setHouseholds, removeHouseholds} from "./output_ui.js";
 
 const WIND_API_BASE = "http://localhost:8080";
 
@@ -18,6 +17,7 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
 
     try {
         removePolygonWindTradeoff();
+        removeHouseholds();
         setPolygonWindOutput_Annual("Computing…");
         setSelectedWindOutput_Annual("Computing…");
 
@@ -135,6 +135,7 @@ export async function computeAndUpdateOutputWind(ref, selectedMast = null) {
         // --- total polygon output ---
         const roundedTotal_MWh = Math.round((total_kWh / 1000) / 100) * 100;
         setPolygonWindOutput_Annual(`${roundedTotal_MWh} MWh/year`);
+        setHouseholds(total_kWh);
 
         const roundedWinter_MWh = Math.round((winter_kWh / 1000) / 100) * 100;
         setPolygonWindOutput_Winter(`${roundedWinter_MWh} MWh`);
@@ -221,8 +222,10 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     setPolygonWindOutput_Annual("Computing…");
     setSelectedWindOutput_Annual("Computing…");
 
-    setPolygonWindOutput_Winter("—")
-    setPolygonWindOutput_Summer("—")
+    setPolygonWindOutput_Winter("—");
+    setPolygonWindOutput_Summer("—");
+
+    removeHouseholds();
 
     const ref = selectedPolygonRef;
 
@@ -333,6 +336,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
     // --- total polygon output ---
     const roundedTotal_MWh = Math.round((total_annual_kWh / 1000) / 100) * 100;
     setPolygonWindOutput_Annual(`${roundedTotal_MWh} MWh/year`);
+    setHouseholds(total_annual_kWh);
 
     const roundedWinter_MWh = Math.round((total_winter_kWh / 1000) / 100) * 100;
     setPolygonWindOutput_Winter(`${roundedWinter_MWh} MWh`);
@@ -424,7 +428,7 @@ export async function optimizePolygon(selectedPolygonRef, viewer, rotatingBlades
                     mast.description = `Hub height: ${rec.hubHeight} m<br/>Annual Energy Output: ${rounded_annual_MWh} MWh/year<br/>Winter Energy Output: ${rounded_winter_MWh} MWh<br/>Summer Energy Output: ${rounded_summer_MWh} MWh`;
                 }
             }
-        }
+        }/* keeps it square */
         // --- selected turbine output (works for polygon turbine AND single turbine) ---
         if (selectedMast) {
             const id = selectedMast.turbineId;

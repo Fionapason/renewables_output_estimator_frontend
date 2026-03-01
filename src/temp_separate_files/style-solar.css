@@ -318,3 +318,33 @@ html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0;
 #polygonoutputPVPanel .delta.pos { color: #1a7f37; } /* green */
 #polygonoutputPVPanel .delta.neg { color: #d1242f; } /* red */
 #polygonoutputPVPanel .delta.zero { color: #6e7781; } /* grey */
+
+
+#polygonPV_households {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    font-size: 1.2em;
+    margin-top: 0.8em;
+    font-weight: bold;
+}
+
+#polygonPV_households .icon {
+    height: 1em;
+    width: 1em;
+}
+
+
+#polygonPV_person {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+    font-size: 1.2em;
+    margin-top: 0.8em;
+    font-weight: bold;
+}
+
+#polygonPV_person .icon {
+    height: 1em;
+    width: 1em;
+}

@@ -669,6 +669,7 @@ async function main() {
         showPolygonOptions(selectedPolygonRef);
         setSpacingUI(selectedPolygonRef.spacing);
         showPolygonPVOutput(selectedPolygonRef);
+        console.log("JUST BEFORE COMPUTE")
         await computeAndUpdatePVOutput(selectedPolygonRef);
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
@@ -1706,7 +1707,7 @@ async function main() {
         } : null;
 
         closePVParamsPanel();
-
+        console.log("JUST BEFORE COMPUTE")
         await computeAndUpdatePVOutput(selectedPolygonRef);
     };
 
@@ -1916,6 +1917,7 @@ async function main() {
         showPolygonOptions(ref);
         setSpacingUI(ref.spacing);
         showPolygonPVOutput(ref);
+        console.log("JUST BEFORE COMPUTE")
         await computeAndUpdatePVOutput(ref);
 
     }

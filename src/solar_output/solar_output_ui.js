@@ -285,3 +285,57 @@ export function closePVParamsPanel() {
   const err = document.getElementById("pv_params_error");
   if (err) err.style.display = "none";
 }
+
+
+export function setPVHouseholds(annual_kwh) {
+
+
+  const household_icon = document.getElementById("houseIcon_PV")
+  if (household_icon) household_icon.style.display = "block";
+
+  const household_value = document.getElementById("polygonPV_households_value")
+  if (household_value) household_value.style.display = "block";
+
+  const person_icon = document.getElementById("personIcon_PV")
+  if (person_icon) person_icon.style.display = "block";
+
+  const person_value = document.getElementById("polygonPV_person_value")
+  if (person_value) person_value.style.display = "block";
+
+  const annual_kwh_per_household = 5000; // https://www.aramis.admin.ch/Texte/?ProjectID=33454
+  const households = Math.round(annual_kwh / annual_kwh_per_household);
+  const rounded_households = Math.round(households / 10) * 10;
+
+  // people https://www.bfs.admin.ch/bfs/de/home/statistiken/bevoelkerung/familien/haushalte.html
+  // 2.18 ppl / household
+  const annual_kwh_per_person = (2190 + 0.18 * 458.5) / 2.18;
+  const people = Math.round(annual_kwh / annual_kwh_per_person);
+  const rounded_people = Math.round(people / 10) * 10;
+
+  //const
+
+  const household_value_el = document.getElementById("polygonPV_households_value")
+
+  const person_value_el = document.getElementById("polygonPV_person_value")
+
+  if (household_value_el) household_value_el.textContent = `${rounded_households} households supplied.`
+
+  if (person_value_el) person_value_el.textContent = `${rounded_people} people supplied.`
+
+}
+
+export function removePVHouseholds() {
+
+    const household_icon = document.getElementById("houseIcon_PV");
+    if (household_icon) household_icon.style.display = "none";
+
+    const household_value = document.getElementById("polygonPV_households_value");
+    if (household_value) household_value.style.display = "none";
+
+    const person_icon = document.getElementById("personIcon_PV");
+    if (person_icon) person_icon.style.display = "none";
+
+    const person_value = document.getElementById("polygonPV_person_value");
+    if (person_value) person_value.style.display = "none";
+
+}

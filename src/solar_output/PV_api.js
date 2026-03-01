@@ -1,8 +1,10 @@
 import {entityLonLat} from "./geometry_helpers.js";
 import * as Cesium from "cesium";
-import {setPVOutput_Annual, setPVOutput_Winter,
+import {
+    setPVOutput_Annual, setPVOutput_Winter,
     setPVOutput_Summer, setPolygonPVTradeoff,
-    startPVLoader, stopPVLoader} from "./solar_output_ui.js";
+    startPVLoader, stopPVLoader, setPVHouseholds, removePVHouseholds, removePolygonPVTradeoff
+} from "./solar_output_ui.js";
 import {showPolygonPVOutput} from "./solar_output_ui.js";
 
 
@@ -10,6 +12,12 @@ const PV_API_BASE = "http://localhost:8000";
 
 // SET OUTPUT
 export async function computeAndUpdatePVOutput(ref) {
+
+    console.log("HELLO?")
+
+    removePVHouseholds();
+    removePolygonPVTradeoff();
+
     if (!ref) {
         setPVOutput_Annual("—");
         setPVOutput_Winter("—");
@@ -68,7 +76,7 @@ export async function computeAndUpdatePVOutput(ref) {
         setPVOutput_Annual(`${rounded_annual} ${unit_string}/year`);
         setPVOutput_Winter(`${rounded_winter} ${unit_string}/year`);
         setPVOutput_Summer(`${rounded_summer} ${unit_string}/year`);
-
+        setPVHouseholds(annual_kwh);
 
         if (ref.annual_first != null) {
 
