@@ -3,7 +3,7 @@ import * as Cesium from "cesium";
 import {
     setPVOutput_Annual, setPVOutput_Winter,
     setPVOutput_Summer, setPolygonPVTradeoff,
-    startPVLoader, stopPVLoader, setPVHouseholds, removePVHouseholds, removePolygonPVTradeoff
+    startPVLoader, stopPVLoader, setPVHouseholds, removePVHouseholds, removePolygonPVTradeoff, setPVCapacity
 } from "./solar_output_ui.js";
 import {showPolygonPVOutput} from "./solar_output_ui.js";
 
@@ -52,6 +52,11 @@ export async function computeAndUpdatePVOutput(ref) {
         const annual_kwh = result?.annual_kWh ?? result?.annual_kWh; // keep simple
         const winter_kwh = result?.winter_kWh ?? result?.annual_kWh;
         const summer_kwh = annual_kwh - winter_kwh;
+
+        const capacity_kw = result?.capacity_kW ?? result?.capacity_kW;
+
+        const rounded_capacity = Math.round(capacity_kw);
+        setPVCapacity(rounded_capacity);
 
         if (annual_kwh == null) {
             setPVOutput_Annual("API ok, missing annual_kWh");

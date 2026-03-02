@@ -348,3 +348,17 @@ html, body, #cesiumContainer { height: 100%; width: 100%; margin: 0; padding: 0;
     height: 1em;
     width: 1em;
 }
+
+#pv_capacity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  font-size: 1.2em;
+  margin-top: 0.8em;
+  font-weight: bold;
+}
+
+#pv_capacity .icon {
+  height: 1em;
+  width: 1em;
+}

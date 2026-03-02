@@ -338,4 +338,26 @@ export function removePVHouseholds() {
     const person_value = document.getElementById("polygonPV_person_value");
     if (person_value) person_value.style.display = "none";
 
+    const capacity_icon = document.getElementById("capacityIcon_PV");
+    if (capacity_icon) capacity_icon.hidden = true;
+
+    const capacity_value = document.getElementById("pv_capacity_value");
+    if (capacity_value) capacity_value.hidden = true;
+
+}
+
+export function setPVCapacity(capacity) {
+  const row  = document.getElementById("pv_capacity");
+  const val  = document.getElementById("pv_capacity_value");
+  const icon = document.getElementById("capacityIcon_PV");
+
+  if (row) row.hidden = false;          // <- this is the important part
+  // don't set display at all (let CSS keep flex)
+
+  if (icon) icon.hidden = false;
+
+  if (val) {
+    val.hidden = false;
+    val.textContent = `${capacity} kW installed capacity`;
+  }
 }
