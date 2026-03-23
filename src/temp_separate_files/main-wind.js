@@ -45,7 +45,7 @@ function getWindComputeCanvasLoader() {
 }
 
 
-// TODO manage polygon output bugs: changing hub height, race condition when making changes before it computes
+
 async function main() {
     'use strict';
 
@@ -533,7 +533,6 @@ async function main() {
         const newEntities = [];
 
         // 1) Determine rotor radius based on hubHeight
-        // TODO rename these variables to minimum distance, they are CONFUSING
         let rotorRadius;
         if (hubHeight === 150) rotorRadius = 450;
         else if (hubHeight === 125) rotorRadius = 350;
@@ -719,7 +718,6 @@ async function main() {
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 // FUNCTION I: RIGHT CLICK + S TO SELECT A SINGLE TURBINE
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-// TODO ENFORCE MINIMUM TURBINE DISTANCE
     let selectedTurbineRef = null;    // { entities: [mast, blades], record: polygonRecord }
     let turbineSelectMode = false;
 
