@@ -572,32 +572,31 @@ async function main() {
             const groundPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height);
             placedGroundPositions.push(groundPos);
 
-            const cfg = {
-                mastAndNacelleUri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`,
-                bladesAndHubUri: `/tiles/turbines/bladesandhub${hubHeight}center.glb`,
-                hubheight: hubHeight
-            };
+            const hubPos = Cesium.Cartesian3.fromRadians(
+                c.longitude,
+                c.latitude,
+                c.height + hubHeight
+            );
 
-            // Place mast + nacelle
-            const baseHeading = Cesium.Math.toRadians(dominantDeg);
+            const baseHeading = 0; // temporary until backend returns dominant direction
 
-        const mast = viewer.entities.add({
-            position: groundPos,
-            orientation: new Cesium.ConstantProperty(
-                Cesium.Transforms.headingPitchRollQuaternion(
-                    groundPos,
-                    new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
-                )
-            ),
-            model: { uri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`, scale: 1, runAnimations: false },
-        });
+            const mast = viewer.entities.add({
+                position: groundPos,
+                orientation: new Cesium.ConstantProperty(
+                    Cesium.Transforms.headingPitchRollQuaternion(
+                        groundPos,
+                        new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
+                    )
+                ),
+                model: {
+                    uri: `/tiles/turbines/mastandnacelle${hubHeight}.glb`,
+                    scale: 1,
+                    runAnimations: false
+                },
+            });
 
-            // optional: store for later updates
             mast._baseHeading = baseHeading;
             newEntities.push(mast);
-
-            // Place blades at hub height
-            const hubPos = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + cfg.hubheight);
 
             const blades = viewer.entities.add({
                 position: hubPos,
@@ -605,16 +604,18 @@ async function main() {
                     hubPos,
                     new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
                 ),
-                model: {uri: cfg.bladesAndHubUri, scale: 1, runAnimations: false}
+                model: {
+                    uri: `/tiles/turbines/bladesandhub${hubHeight}center.glb`,
+                    scale: 1,
+                    runAnimations: false
+                }
             });
+
+            blades._baseHeading = baseHeading;
             newEntities.push(blades);
             rotatingBlades.push(blades);
         });
 
-        // store for animation loop
-        blades._baseHeading = baseHeading;
-
-        // NEW: report placed positions back to caller if requested
         if (typeof onPlacedPositions_callback_function === "function") {
             onPlacedPositions_callback_function(placedGroundPositions);
         }
@@ -869,23 +870,22 @@ async function main() {
             carto.longitude, carto.latitude, carto.height
         );
 
-        const baseHeading = Cesium.Math.toRadians(dominantDeg); // from backend
+        // temporary heading until backend returns the real one
+        const temporaryHeading = 0;
 
         const mast = viewer.entities.add({
             position: groundPos,
             orientation: new Cesium.ConstantProperty(
                 Cesium.Transforms.headingPitchRollQuaternion(
                     groundPos,
-                    new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
+                    new Cesium.HeadingPitchRoll(temporaryHeading, 0, 0)
                 )
             ),
             model: { uri: `/tiles/turbines/mastandnacelle${newH}.glb`, scale: 1, runAnimations: false },
         });
 
-        // optional: store for later updates
-        mast._baseHeading = baseHeading;
+        mast._baseHeading = temporaryHeading;
 
-        // add new blades
         const hubPos = Cesium.Cartesian3.fromRadians(
             carto.longitude, carto.latitude, carto.height + newH
         );
@@ -893,20 +893,17 @@ async function main() {
         const blades = viewer.entities.add({
             position: hubPos,
             orientation: Cesium.Transforms.headingPitchRollQuaternion(
-                hubPos, new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
+                hubPos,
+                new Cesium.HeadingPitchRoll(temporaryHeading, 0, 0)
             ),
             model: {uri: `/tiles/turbines/bladesandhub${newH}center.glb`, scale: 1}
         });
         rotatingBlades.push(blades);
-        // store for animation loop
-        blades._baseHeading = baseHeading;
+        blades._baseHeading = temporaryHeading;
 
         // update record
         const rec = selectedTurbineRef.record;
-        rec.turbines = rec.turbines
-            .filter(e => !oldGroup.includes(e))
-            .concat([mast, blades]);
-        // FIONA'S CHANGES
+        rec.turbines = [mast, blades];
         rec.hubHeight = newH;
 
         // highlight new ones
@@ -928,7 +925,28 @@ async function main() {
         // FIONA'S CHANGES
         showPolygonOptions(selectedTurbineRef);
         showPolygonOutput(selectedTurbineRef);
-        await runWindCalculation(selectedTurbineRef);
+
+        // run backend AFTER rebuilding geometry
+        const result = await runWindCalculation(selectedTurbineRef);
+
+        // update orientation from backend result
+        if (result && result.dominantDeg !== undefined && result.dominantDeg !== null) {
+            const headingRad = Cesium.Math.toRadians(result.dominantDeg);
+
+            mast.orientation = new Cesium.ConstantProperty(
+                Cesium.Transforms.headingPitchRollQuaternion(
+                    groundPos,
+                    new Cesium.HeadingPitchRoll(headingRad, 0, 0)
+                )
+            );
+            mast._baseHeading = headingRad;
+
+            blades.orientation = Cesium.Transforms.headingPitchRollQuaternion(
+                hubPos,
+                new Cesium.HeadingPitchRoll(headingRad, 0, 0)
+            );
+            blades._baseHeading = headingRad;
+        }
     });
 
 
@@ -1036,28 +1054,35 @@ async function main() {
 
         // 1) remove old turbines
         ref.turbines.forEach(e => viewer.entities.remove(e));
+        rotatingBlades = rotatingBlades.filter(b => !ref.turbines.includes(b));
 
-        // FIONA'S CHANGES
         let placedPositions = null;
 
         const verts = getPolygonVerticesCartesian(ref);
-        // 2) place new ones at the same polygon & count
+
+        // 2) place new ones with temporary heading only
         const replacements = await placeTurbinesInPolygon(
             verts,
             newH,
             (pp) => {
                 placedPositions = pp;
-            }
+            },
+            0 // temporary heading in radians, if your function supports it
         );
 
-        // 3) update the record
+        // 3) update record
         ref.turbines = replacements;
         ref.hubHeight = newH;
-
-        // FIONA'S CHANGES
-        // update turbine positions to the actual placed ground positions
         if (placedPositions) ref.positions = placedPositions;
-        await runWindCalculation(ref);
+
+        // 4) backend first
+        const result = await runWindCalculation(ref);
+
+        // 5) then apply correct heading
+        if (result && result.dominantDeg !== undefined && result.dominantDeg !== null) {
+            const headingRad = Cesium.Math.toRadians(result.dominantDeg);
+            applyHeadingToTurbineGroup(ref.turbines, headingRad);
+        }
     });
 
 
@@ -1102,6 +1127,7 @@ async function main() {
 
         // (optional but helps) force layout update before measuring canvas
         loaderEl.hidden = false;
+        void loaderEl.offsetHeight;
         void loaderEl.offsetHeight;
 
         const loader = getWindComputeCanvasLoader();
@@ -1435,13 +1461,13 @@ async function main() {
 
         let earthPosition = viewer.scene.pickPosition(clickEvt.position);
 
-        // Fallback: pick globe if terrain fails
         if (!Cesium.defined(earthPosition)) {
             earthPosition = viewer.scene.globe.pick(
                 viewer.camera.getPickRay(clickEvt.position),
                 viewer.scene
             );
         }
+
         if (!Cesium.defined(earthPosition)) {
             alert("Couldn't pick a position on the globe.");
             return;
@@ -1454,7 +1480,8 @@ async function main() {
         // Sample terrain height at that position
         const carto = Cesium.Cartographic.fromCartesian(earthPosition);
         const terrainHeights = await Cesium.sampleTerrainMostDetailed(
-            viewer.terrainProvider, [carto]
+            viewer.terrainProvider,
+            [carto]
         );
         const groundHeight = terrainHeights[0].height;
 
@@ -1462,7 +1489,15 @@ async function main() {
         const groundPos = Cesium.Cartesian3.fromRadians(
             carto.longitude, carto.latitude, groundHeight
         );
-          viewer.entities.add({
+
+        const hubPos = Cesium.Cartesian3.fromRadians(
+            carto.longitude,
+            carto.latitude,
+            groundHeight + H
+        );
+
+        // Create mast first
+        const mast = viewer.entities.add({
             name: "Wind Turbine",
             position: groundPos,
             model: {
@@ -1473,15 +1508,12 @@ async function main() {
             description: `Hub height: ${H} meters`
         });
 
-        // Place blades at hub height
-        const hubPos = Cesium.Cartesian3.fromRadians(
-            carto.longitude, carto.latitude, groundHeight + H
-        );
-        const baseHeading = Cesium.Math.toDegrees(dominantDeg)
+        // Create blades with temporary orientation
         const blades = viewer.entities.add({
             position: hubPos,
             orientation: Cesium.Transforms.headingPitchRollQuaternion(
-                hubPos, new Cesium.HeadingPitchRoll(baseHeading, 0, 0)
+                hubPos,
+                new Cesium.HeadingPitchRoll(0, 0, 0)
             ),
             model: {
                 uri: `tiles/turbines/bladesandhub${H}center.glb`,
@@ -1489,7 +1521,8 @@ async function main() {
                 runAnimations: false
             }
         });
-        blades._baseHeading = baseHeading;
+
+        blades._baseHeading = 0;
         rotatingBlades.push(blades);
 
         // Add the new turbine to polygonTurbineRecords as a single-turbine "polygon"
@@ -1506,6 +1539,7 @@ async function main() {
             selectedTurbineRef.entities.forEach(ent => ent.model.color = undefined);
             document.getElementById('turbineOptions').style.display = 'none';
         }
+
         mast.model.color = new Cesium.ConstantProperty(
             Cesium.Color.fromCssColorString('#f8c373').withAlpha(0.6)
         );
@@ -1516,8 +1550,20 @@ async function main() {
         selectedTurbineRef = {entities: [mast, blades], record: record};
         showTurbineOptions(selectedTurbineRef);
 
-        // FIONA'S CHANGES
-        await runWindCalculation(selectedTurbineRef);
+        // Run backend first
+        const result = await runWindCalculation(selectedTurbineRef);
+
+        // Expect backend result to contain dominant direction
+        if (result && result.dominantDeg !== undefined && result.dominantDeg !== null) {
+            const headingRad = Cesium.Math.toRadians(result.dominantDeg);
+
+            blades.orientation = Cesium.Transforms.headingPitchRollQuaternion(
+                hubPos,
+                new Cesium.HeadingPitchRoll(headingRad, 0, 0)
+            );
+
+            blades._baseHeading = headingRad;
+        }
 
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
